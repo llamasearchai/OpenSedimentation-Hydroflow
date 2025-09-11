@@ -7,7 +7,7 @@ name = "hydroflow"
 version = "0.1.0"
 description = "Advanced bathymetric analysis and sediment transport management system"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Nik Jois", email = "nikjois@llamasearch.ai"}
 ]
