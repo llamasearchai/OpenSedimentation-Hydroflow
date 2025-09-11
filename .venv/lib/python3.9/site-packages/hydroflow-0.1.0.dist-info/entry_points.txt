@@ -1,0 +1,2 @@
+[console_scripts]
+hydroflow = hydroflow.cli.main:cli

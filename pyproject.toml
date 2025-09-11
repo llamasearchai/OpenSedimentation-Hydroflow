@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hydroflow"
+version = "0.1.0"
+description = "Advanced bathymetric analysis and sediment transport management system"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Nik Jois", email = "nikjois@llamasearch.ai"}
+]
+maintainers = [
+    {name = "Nik Jois", email = "nikjois@llamasearch.ai"}
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "pandas>=2.0",
+    "xarray>=2023.1",
+    "scikit-learn>=1.3",
+    "click>=8.1",
+    "PyYAML>=6.0",
+    "aiohttp>=3.9",
+    "websockets>=11.0",
+    "rich>=13.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.23",
+    "pydantic>=2.7",
+    "openai>=1.40.0",
+    "python-dotenv>=1.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "mypy>=1.5",
+    "black>=23.7",
+    "isort>=5.12",
+    "httpx>=0.27"
+]
+
+[project.scripts]
+hydroflow = "hydroflow.cli.main:cli"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --cov=hydroflow --cov-report=term-missing"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.setuptools.packages.find]
+include = ["hydroflow*"]
+
+

@@ -1,0 +1,64 @@
+Metadata-Version: 2.4
+Name: hydroflow
+Version: 0.1.0
+Summary: Advanced bathymetric analysis and sediment transport management system
+Author-email: Nik Jois <nikjois@llamasearch.ai>
+Maintainer-email: Nik Jois <nikjois@llamasearch.ai>
+License: MIT
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.24
+Requires-Dist: scipy>=1.10
+Requires-Dist: pandas>=2.0
+Requires-Dist: xarray>=2023.1
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: click>=8.1
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: aiohttp>=3.9
+Requires-Dist: websockets>=11.0
+Requires-Dist: rich>=13.0
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn>=0.23
+Requires-Dist: pydantic>=2.7
+Requires-Dist: openai>=1.40.0
+Requires-Dist: python-dotenv>=1.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: mypy>=1.5; extra == "dev"
+Requires-Dist: black>=23.7; extra == "dev"
+Requires-Dist: isort>=5.12; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+
+HydroFlow
+=========
+
+Quickstart
+----------
+
+1. Create environment and install:
+
+   - python3 -m venv .venv && source .venv/bin/activate
+   - pip install -e .
+   - pip install -e .[dev]
+
+2. Run tests:
+
+   - pytest -q
+
+3. CLI:
+
+   - hydroflow info --check
+   - hydroflow analyze bathymetry data.xyz --method idw --resolution 2.0
+   - hydroflow analyze sediment flow.csv --d50 0.5 --d90 1.0
+
+4. API:
+
+   - hydroflow api serve --host 0.0.0.0 --port 8000
+
+5. OpenAI Agent (optional):
+
+   - export OPENAI_API_KEY=...
+   - hydroflow agents summarize --metrics metrics.json
+
+
