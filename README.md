@@ -1,7 +1,7 @@
 Open-Sedimentation & Hydroflow
 ==============================
 
-Open-Sedimentation & Hydroflow is a production-grade, modular hydrological analysis platform. It combines bathymetric processing, sediment transport modeling, vegetation analytics, real‑time monitoring, automated remediation planning, reporting, a FastAPI server, a clean CLI, Dockerized deployment, CI workflow, and optional OpenAI Agents SDK integration.
+Open-Sedimentation & Hydroflow is an OpenAI Agents SDK integrated modular hydrological analysis platform. It combines bathymetric processing, sediment transport modeling, vegetation analytics, real‑time monitoring, automated remediation planning, reporting, a FastAPI server, a clean CLI, Dockerized deployment, CI workflow, and optional OpenAI Agents SDK integration.
 
 Contents
 --------
