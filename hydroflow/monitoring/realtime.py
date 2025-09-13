@@ -5,12 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Callable
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,5 +53,3 @@ class RealtimeMonitor:
             unit="m/s",
             quality=0.95,
         )
-
-

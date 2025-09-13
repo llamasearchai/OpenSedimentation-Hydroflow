@@ -26,7 +26,9 @@ class DredgingOptimizer:
     def __init__(self, config: Dict):
         self.config = config
 
-    def optimize_dredging_plan(self, bathymetry: np.ndarray, target_depth: float, max_volume: Optional[float] = None) -> Dict:
+    def optimize_dredging_plan(
+        self, bathymetry: np.ndarray, target_depth: float, max_volume: Optional[float] = None
+    ) -> Dict:
         areas = self._identify_dredging_areas(bathymetry, target_depth)
         areas.sort(key=lambda a: (-a.priority, -a.volume))
         total_volume = sum(a.volume for a in areas)
@@ -47,7 +49,9 @@ class DredgingOptimizer:
             "priority_areas": [a.id for a in areas[:5]],
         }
 
-    def _identify_dredging_areas(self, bathymetry: np.ndarray, target_depth: float) -> List[DredgingArea]:
+    def _identify_dredging_areas(
+        self, bathymetry: np.ndarray, target_depth: float
+    ) -> List[DredgingArea]:
         deficit = np.maximum(target_depth - bathymetry, 0)
         from scipy.ndimage import label
 
@@ -62,8 +66,20 @@ class DredgingOptimizer:
             cy, cx = float(np.mean(idx[0])), float(np.mean(idx[1]))
             vol = float(np.sum(deficit[comp]))
             max_def = float(np.max(deficit[comp]))
-            priority = 5 if max_def > 2 else 4 if max_def > 1.5 else 3 if max_def > 1.0 else 2 if max_def > 0.5 else 1
-            areas.append(DredgingArea(id=f"area_{i}", location=(cx, cy), volume=vol, priority=priority, depth_deficit=max_def))
+            priority = (
+                5
+                if max_def > 2
+                else 4 if max_def > 1.5 else 3 if max_def > 1.0 else 2 if max_def > 0.5 else 1
+            )
+            areas.append(
+                DredgingArea(
+                    id=f"area_{i}",
+                    location=(cx, cy),
+                    volume=vol,
+                    priority=priority,
+                    depth_deficit=max_def,
+                )
+            )
         return areas
 
     def _area_to_dict(self, area: DredgingArea) -> Dict:
@@ -75,5 +91,3 @@ class DredgingOptimizer:
             "depth_deficit": float(area.depth_deficit),
             "cost_estimate": float(area.cost_estimate),
         }
-
-

@@ -32,5 +32,3 @@ def test_exner_solver_shapes():
     ds = model.solve_exner_equation(initial_bed, (0, 10), dt=1)
     assert "bed_elevation" in ds
     assert ds["bed_elevation"].shape[1:] == initial_bed.shape
-
-

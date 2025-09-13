@@ -213,5 +213,3 @@ Roadmap
 - Pluggable sensor backends (MQTT/HTTP/Modbus).
 - Rich PDF report generation.
 - GPU-accelerated interpolation and larger-scale datasets with Dask.
-
-

@@ -1,6 +1,7 @@
 """WebSocket monitoring tests."""
 
 import json
+
 from fastapi.testclient import TestClient
 
 from hydroflow.api.app import create_app
@@ -33,4 +34,3 @@ def test_websocket_monitor_stream():
             pass
     assert len(messages) >= 1
     assert "sensor_id" in messages[0]
-

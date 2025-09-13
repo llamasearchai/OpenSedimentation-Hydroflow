@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from scipy import ndimage
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +17,9 @@ class VegetationAnalyzer:
         self.classifier = None
         self.species_database = self._load_species_database()
 
-    def analyze_satellite_imagery(self, imagery_path: str, bands: List[str] = ["red", "green", "blue", "nir"]) -> Dict:
+    def analyze_satellite_imagery(
+        self, imagery_path: str, bands: List[str] = ["red", "green", "blue", "nir"]
+    ) -> Dict:
         # Minimal implementation without rasterio to keep deps small for tests
         # Expect a NumPy .npz or .npy input for testability
         data = np.load(imagery_path)
@@ -39,7 +40,9 @@ class VegetationAnalyzer:
             "crs": None,
         }
 
-    def detect_aquatic_vegetation(self, multispectral_data: np.ndarray, water_mask: np.ndarray) -> Dict:
+    def detect_aquatic_vegetation(
+        self, multispectral_data: np.ndarray, water_mask: np.ndarray
+    ) -> Dict:
         water_data = multispectral_data * water_mask[np.newaxis, :, :]
         ndavi = self._calculate_ndavi(multispectral_data)
         fai = self._calculate_fai(multispectral_data)
@@ -52,10 +55,14 @@ class VegetationAnalyzer:
             "floating": floating,
             "emergent": emergent,
             "biomass": biomass,
-            "total_coverage": float(np.sum(submerged | floating | emergent) / max(np.sum(water_mask), 1)),
+            "total_coverage": float(
+                np.sum(submerged | floating | emergent) / max(np.sum(water_mask), 1)
+            ),
         }
 
-    def identify_invasive_species(self, spectral_data: np.ndarray, known_signatures: Optional[Dict] = None) -> Dict:
+    def identify_invasive_species(
+        self, spectral_data: np.ndarray, known_signatures: Optional[Dict] = None
+    ) -> Dict:
         if known_signatures is None:
             known_signatures = self._get_default_invasive_signatures()
         identified: Dict[str, Dict] = {}
@@ -72,7 +79,9 @@ class VegetationAnalyzer:
                 }
         return identified
 
-    def calculate_removal_priority(self, vegetation_map: np.ndarray, flow_impact: np.ndarray, ecological_value: np.ndarray) -> np.ndarray:
+    def calculate_removal_priority(
+        self, vegetation_map: np.ndarray, flow_impact: np.ndarray, ecological_value: np.ndarray
+    ) -> np.ndarray:
         vegetation_norm = vegetation_map / (np.max(vegetation_map) + 1e-12)
         flow_norm = flow_impact / (np.max(flow_impact) + 1e-12)
         ecological_norm = ecological_value / (np.max(ecological_value) + 1e-12)
@@ -83,7 +92,9 @@ class VegetationAnalyzer:
         )
         return priority
 
-    def optimize_removal_timing(self, species_data: Dict, environmental_conditions: np.ndarray | 'pd.DataFrame') -> 'np.ndarray | pd.DataFrame':
+    def optimize_removal_timing(
+        self, species_data: Dict, environmental_conditions: np.ndarray | "pd.DataFrame"
+    ) -> "np.ndarray | pd.DataFrame":
         import pandas as pd  # Local import
 
         schedule = []
@@ -92,7 +103,9 @@ class VegetationAnalyzer:
             reproduction_period = data.get("reproduction_period", [])
             optimal_months = self._find_optimal_removal_window(growth_rate, reproduction_period)
             if isinstance(environmental_conditions, pd.DataFrame):
-                feasible_months = self._check_environmental_feasibility(optimal_months, environmental_conditions)
+                feasible_months = self._check_environmental_feasibility(
+                    optimal_months, environmental_conditions
+                )
             else:
                 feasible_months = optimal_months
             schedule.append(
@@ -106,16 +119,25 @@ class VegetationAnalyzer:
             )
         return pd.DataFrame(schedule)
 
-    def estimate_regrowth_potential(self, species: str, removal_method: str, environmental_factors: Dict) -> Dict:
+    def estimate_regrowth_potential(
+        self, species: str, removal_method: str, environmental_factors: Dict
+    ) -> Dict:
         species_info = self.species_database.get(species, {})
         base_rate = species_info.get("regrowth_rate", 0.5)
-        method_effectiveness = {"mechanical": 0.7, "chemical": 0.9, "biological": 0.6, "manual": 0.8}
+        method_effectiveness = {
+            "mechanical": 0.7,
+            "chemical": 0.9,
+            "biological": 0.6,
+            "manual": 0.8,
+        }
         removal_factor = method_effectiveness.get(removal_method, 0.5)
         temp = environmental_factors.get("temperature", 20)
         temp_factor = self._temperature_growth_factor(temp)
         nutrient_factor = environmental_factors.get("nutrients", 1.0)
         light_factor = environmental_factors.get("light", 1.0)
-        regrowth_rate = base_rate * (1 - removal_factor) * temp_factor * nutrient_factor * light_factor
+        regrowth_rate = (
+            base_rate * (1 - removal_factor) * temp_factor * nutrient_factor * light_factor
+        )
         time_to_regrowth = 1 / regrowth_rate if regrowth_rate > 0 else float("inf")
         return {
             "regrowth_rate": float(regrowth_rate),
@@ -182,9 +204,24 @@ class VegetationAnalyzer:
 
     def _load_species_database(self) -> Dict:
         return {
-            "water_hyacinth": {"growth_rate": 0.15, "reproduction_period": [4, 5, 6, 7, 8, 9], "optimal_temperature": 28, "regrowth_rate": 0.8},
-            "giant_salvinia": {"growth_rate": 0.25, "reproduction_period": [5, 6, 7, 8], "optimal_temperature": 25, "regrowth_rate": 0.9},
-            "cattail": {"growth_rate": 0.05, "reproduction_period": [6, 7, 8], "optimal_temperature": 22, "regrowth_rate": 0.6},
+            "water_hyacinth": {
+                "growth_rate": 0.15,
+                "reproduction_period": [4, 5, 6, 7, 8, 9],
+                "optimal_temperature": 28,
+                "regrowth_rate": 0.8,
+            },
+            "giant_salvinia": {
+                "growth_rate": 0.25,
+                "reproduction_period": [5, 6, 7, 8],
+                "optimal_temperature": 25,
+                "regrowth_rate": 0.9,
+            },
+            "cattail": {
+                "growth_rate": 0.05,
+                "reproduction_period": [6, 7, 8],
+                "optimal_temperature": 22,
+                "regrowth_rate": 0.6,
+            },
         }
 
     def _calculate_ndavi(self, data: np.ndarray) -> np.ndarray:
@@ -201,10 +238,16 @@ class VegetationAnalyzer:
             return nir - baseline
         return np.zeros_like(data[0])
 
-    def _estimate_biomass(self, submerged: np.ndarray, floating: np.ndarray, emergent: np.ndarray) -> Dict:
+    def _estimate_biomass(
+        self, submerged: np.ndarray, floating: np.ndarray, emergent: np.ndarray
+    ) -> Dict:
         biomass_factors = {"submerged": 0.5, "floating": 2.0, "emergent": 3.5}
         return {
-            "total": float(np.sum(submerged) * biomass_factors["submerged"] + np.sum(floating) * biomass_factors["floating"] + np.sum(emergent) * biomass_factors["emergent"]),
+            "total": float(
+                np.sum(submerged) * biomass_factors["submerged"]
+                + np.sum(floating) * biomass_factors["floating"]
+                + np.sum(emergent) * biomass_factors["emergent"]
+            ),
             "submerged": float(np.sum(submerged) * biomass_factors["submerged"]),
             "floating": float(np.sum(floating) * biomass_factors["floating"]),
             "emergent": float(np.sum(emergent) * biomass_factors["emergent"]),
@@ -238,15 +281,21 @@ class VegetationAnalyzer:
             locations.append((int(centroid[0]), int(centroid[1])))
         return locations
 
-    def _find_optimal_removal_window(self, growth_rate: List[float], reproduction_period: List[int]) -> List[int]:
+    def _find_optimal_removal_window(
+        self, growth_rate: List[float], reproduction_period: List[int]
+    ) -> List[int]:
         all_months = set(range(1, 13))
         non_reproduction = list(all_months - set(reproduction_period))
         if growth_rate:
-            non_reproduction.sort(key=lambda m: growth_rate[m - 1] if m - 1 < len(growth_rate) else 1)
+            non_reproduction.sort(
+                key=lambda m: growth_rate[m - 1] if m - 1 < len(growth_rate) else 1
+            )
             return non_reproduction[:3]
         return non_reproduction[:3]
 
-    def _check_environmental_feasibility(self, months: List[int], conditions: 'np.ndarray | pd.DataFrame') -> List[int]:
+    def _check_environmental_feasibility(
+        self, months: List[int], conditions: "np.ndarray | pd.DataFrame"
+    ) -> List[int]:
         import pandas as pd
 
         feasible: List[int] = []
@@ -296,5 +345,3 @@ class VegetationAnalyzer:
         total_area = np.sum(mask)
         frag = num_patches / (total_area / 100.0)
         return float(min(frag, 1.0))
-
-

@@ -45,5 +45,3 @@ def test_volume_change():
     result = analyzer.calculate_volume_change(s1, s2, cell_size=1.0)
     assert result["total_deposition"] > 0
     assert result["total_erosion"] > 0
-
-

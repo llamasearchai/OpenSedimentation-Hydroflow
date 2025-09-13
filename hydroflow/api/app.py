@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Dict, Optional
 
-import asyncio
-from fastapi import FastAPI, HTTPException
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from hydroflow.core.config import Config
-from hydroflow.analysis.bathymetric import BathymetricAnalyzer
-from hydroflow.analysis.sediment_transport import SedimentTransportModel, SedimentProperties
-from hydroflow.agents.openai_agent import HydroFlowAgent
-from hydroflow.remediation.dredging import DredgingOptimizer
-from hydroflow.analysis.vegetation import VegetationAnalyzer
-from hydroflow.monitoring.realtime import RealtimeMonitor
 from hydroflow import __version__
+from hydroflow.agents.openai_agent import HydroFlowAgent
+from hydroflow.analysis.bathymetric import BathymetricAnalyzer
+from hydroflow.analysis.sediment_transport import SedimentProperties, SedimentTransportModel
+from hydroflow.analysis.vegetation import VegetationAnalyzer
+from hydroflow.core.config import Config
+from hydroflow.monitoring.realtime import RealtimeMonitor
+from hydroflow.remediation.dredging import DredgingOptimizer
 
 
 class BathymetryRequest(BaseModel):
@@ -68,7 +67,9 @@ def create_app(config: Optional[Config] = None) -> FastAPI:
 
         analyzer = BathymetricAnalyzer(cfg.dict())
         pts = np.array(req.points, dtype=float)
-        surface = analyzer.create_bathymetric_surface(pts, method=req.method, resolution=req.resolution)
+        surface = analyzer.create_bathymetric_surface(
+            pts, method=req.method, resolution=req.resolution
+        )
         metrics = analyzer.detect_channel_features(surface)["metrics"]
         return {"shape": list(surface.shape), "metrics": metrics}
 
@@ -156,6 +157,3 @@ def create_app(config: Optional[Config] = None) -> FastAPI:
 
 
 app = create_app()
-
-
-

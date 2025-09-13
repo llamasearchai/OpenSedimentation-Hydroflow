@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import logging
 import numpy as np
-import pandas as pd
 import xarray as xr
 from scipy import interpolate
 from scipy.spatial import Delaunay, cKDTree
 
 from hydroflow.core.exceptions import DataProcessingError
 from hydroflow.utils.gis import calculate_volume
-
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +50,8 @@ class BathymetricAnalyzer:
                 coords={
                     "x": ("point", x),
                     "y": ("point", y),
-                    "time": pd.Timestamp.now(),
+                    # Avoid pandas dependency at import time
+                    "time": np.datetime64("now"),
                 },
                 attrs=metadata,
             )
@@ -152,7 +151,9 @@ class BathymetricAnalyzer:
         }
 
     # Helpers
-    def _apply_sound_velocity_correction(self, depths: np.ndarray, sound_velocity: float) -> np.ndarray:
+    def _apply_sound_velocity_correction(
+        self, depths: np.ndarray, sound_velocity: float
+    ) -> np.ndarray:
         reference_velocity = 1500.0
         return depths * (sound_velocity / reference_velocity)
 
@@ -162,7 +163,9 @@ class BathymetricAnalyzer:
         tide_level = tidal_data.get("level", 0)
         return depths - tide_level
 
-    def _filter_outliers(self, data: np.ndarray, method: str = "iqr", threshold: float = 1.5) -> np.ndarray:
+    def _filter_outliers(
+        self, data: np.ndarray, method: str = "iqr", threshold: float = 1.5
+    ) -> np.ndarray:
         if method == "iqr":
             q1 = np.percentile(data, 25)
             q3 = np.percentile(data, 75)
@@ -183,7 +186,9 @@ class BathymetricAnalyzer:
         quality *= np.exp(-mean_distances / (np.median(mean_distances) + 1e-12))
         return quality
 
-    def _idw_interpolation(self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray, power: float = 2.0) -> np.ndarray:
+    def _idw_interpolation(
+        self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray, power: float = 2.0
+    ) -> np.ndarray:
         tree = cKDTree(points[:, :2])
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
         distances, indices = tree.query(grid_points, k=min(12, len(points)))
@@ -194,15 +199,21 @@ class BathymetricAnalyzer:
         interpolated = np.sum(weights * values, axis=1)
         return interpolated.reshape(xx.shape)
 
-    def _spline_interpolation(self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray) -> np.ndarray:
+    def _spline_interpolation(
+        self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray
+    ) -> np.ndarray:
         from scipy.interpolate import RBFInterpolator
 
-        interpolator = RBFInterpolator(points[:, :2], points[:, 2], kernel="thin_plate_spline", smoothing=0.1)
+        interpolator = RBFInterpolator(
+            points[:, :2], points[:, 2], kernel="thin_plate_spline", smoothing=0.1
+        )
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
         interpolated = interpolator(grid_points)
         return interpolated.reshape(xx.shape)
 
-    def _triangulation_interpolation(self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray) -> np.ndarray:
+    def _triangulation_interpolation(
+        self, points: np.ndarray, xx: np.ndarray, yy: np.ndarray
+    ) -> np.ndarray:
         tri = Delaunay(points[:, :2])
         interpolator = interpolate.LinearNDInterpolator(tri, points[:, 2])
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
@@ -239,7 +250,9 @@ class BathymetricAnalyzer:
         coords = np.column_stack([min_rows, cols])
         return coords
 
-    def _detect_banks(self, bathymetry: np.ndarray, threshold: float) -> Tuple[np.ndarray, np.ndarray]:
+    def _detect_banks(
+        self, bathymetry: np.ndarray, threshold: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
         slopes = self._calculate_slope(bathymetry)
         return np.where(slopes > threshold)
 
@@ -333,7 +346,7 @@ class BathymetricAnalyzer:
         if th.ndim != 2 or th.shape[0] < 2 or th.shape[1] != 2:
             return 1.0
         diffs = np.diff(th, axis=0)
-        path_length = float(np.sum(np.sqrt(np.sum(diffs ** 2, axis=1))))
+        path_length = float(np.sum(np.sqrt(np.sum(diffs**2, axis=1))))
         straight_distance = float(np.sqrt(np.sum((th[-1] - th[0]) ** 2)))
         return path_length / straight_distance if straight_distance > 0 else 1.0
 
@@ -347,7 +360,9 @@ class BathymetricAnalyzer:
         percentile_95 = np.percentile(z_values, 95)
         return np.full_like(z_values, percentile_95)
 
-    def _apply_refraction_correction(self, point_cloud: np.ndarray, water_surface: np.ndarray) -> np.ndarray:
+    def _apply_refraction_correction(
+        self, point_cloud: np.ndarray, water_surface: np.ndarray
+    ) -> np.ndarray:
         n_air = 1.0
         n_water = 1.333
         corrected = point_cloud.copy()
@@ -375,5 +390,3 @@ class BathymetricAnalyzer:
                 if np.any(mask):
                     grid[i, j] = float(np.mean(points[mask, 2]))
         return grid
-
-

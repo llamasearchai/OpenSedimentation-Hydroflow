@@ -22,14 +22,10 @@ class ReportGenerator:
 
     def _render_html(self, data: Dict, report_type: str) -> str:
         title = f"HydroFlow Report - {report_type.title()}"
-        body = "".join(
-            f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in data.items()
-        )
+        body = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in data.items())
         return (
             "<html><head><meta charset='utf-8'><title>" + title + "</title></head>"
             "<body><h1>" + title + "</h1>"
             "<table border='1' cellpadding='6' cellspacing='0'>" + body + "</table>"
             "</body></html>"
         )
-
-

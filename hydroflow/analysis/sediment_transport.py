@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-import logging
 import numpy as np
 import xarray as xr
-
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,9 @@ class SedimentTransportModel:
     def set_flow_field(self, velocity: np.ndarray, depth: np.ndarray):
         self.flow_field = {"velocity": velocity, "depth": depth}
 
-    def calculate_bed_shear_stress(self, velocity: np.ndarray, depth: np.ndarray, roughness: float = 0.03) -> np.ndarray:
+    def calculate_bed_shear_stress(
+        self, velocity: np.ndarray, depth: np.ndarray, roughness: float = 0.03
+    ) -> np.ndarray:
         rho_water = 1000.0
         g = 9.81
         tau = rho_water * g * roughness**2 * velocity**2 / (np.power(depth, 1 / 3) + 1e-12)
@@ -79,7 +80,9 @@ class SedimentTransportModel:
         tau_cr = theta_cr * (self.sediment_props.density - rho_water) * g * d
         return float(tau_cr)
 
-    def calculate_bedload_transport(self, shear_stress: np.ndarray, method: str = "meyer-peter") -> np.ndarray:
+    def calculate_bedload_transport(
+        self, shear_stress: np.ndarray, method: str = "meyer-peter"
+    ) -> np.ndarray:
         if method == "meyer-peter":
             return self._meyer_peter_muller(shear_stress)
         if method == "einstein":
@@ -88,7 +91,9 @@ class SedimentTransportModel:
             return self._vanrijn_bedload(shear_stress)
         raise ValueError(f"Unknown method: {method}")
 
-    def calculate_suspended_load(self, velocity: np.ndarray, depth: np.ndarray, concentration: Optional[np.ndarray] = None) -> np.ndarray:
+    def calculate_suspended_load(
+        self, velocity: np.ndarray, depth: np.ndarray, concentration: Optional[np.ndarray] = None
+    ) -> np.ndarray:
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
         if concentration is None:
@@ -96,7 +101,9 @@ class SedimentTransportModel:
         qs = concentration * velocity * depth
         return qs
 
-    def solve_exner_equation(self, initial_bed: np.ndarray, time_span: Tuple[float, float], dt: float = 1.0) -> xr.Dataset:
+    def solve_exner_equation(
+        self, initial_bed: np.ndarray, time_span: Tuple[float, float], dt: float = 1.0
+    ) -> xr.Dataset:
         times = np.arange(time_span[0], time_span[1], dt)
         bed_evolution = np.zeros((len(times), *initial_bed.shape))
         bed_evolution[0] = initial_bed
@@ -112,13 +119,22 @@ class SedimentTransportModel:
         ds = xr.Dataset(
             {
                 "bed_elevation": (("time", "y", "x"), bed_evolution),
-                "bed_change_rate": (("time", "y", "x"), np.diff(bed_evolution, axis=0, prepend=bed_evolution[[0]])),
+                "bed_change_rate": (
+                    ("time", "y", "x"),
+                    np.diff(bed_evolution, axis=0, prepend=bed_evolution[[0]]),
+                ),
             },
-            coords={"time": times, "y": np.arange(initial_bed.shape[0]), "x": np.arange(initial_bed.shape[1])},
+            coords={
+                "time": times,
+                "y": np.arange(initial_bed.shape[0]),
+                "x": np.arange(initial_bed.shape[1]),
+            },
         )
         return ds
 
-    def predict_deposition_patterns(self, flow_scenarios: List[Dict], time_horizon: float = 365 * 24 * 3600) -> np.ndarray:
+    def predict_deposition_patterns(
+        self, flow_scenarios: List[Dict], time_horizon: float = 365 * 24 * 3600
+    ) -> np.ndarray:
         if self.bathymetry is None:
             raise ValueError("Bathymetry not set")
         total_deposition = np.zeros_like(self.bathymetry)
@@ -172,7 +188,7 @@ class SedimentTransportModel:
         d = self.sediment_props.d50 / 1000.0
         tau_cr = self.calculate_critical_shear_stress()
         excess = np.maximum(shear_stress - tau_cr, 0)
-        qb = 8 * np.sqrt((rho_s / rho_water - 1) * g * d**3) * excess ** 1.5
+        qb = 8 * np.sqrt((rho_s / rho_water - 1) * g * d**3) * excess**1.5
         return qb
 
     def _einstein_bedload(self, shear_stress: np.ndarray) -> np.ndarray:
@@ -200,10 +216,12 @@ class SedimentTransportModel:
         T = np.maximum(T, 0)
         nu = 1e-6
         D_star = d * ((rho_s / rho_water - 1) * g / (nu**2)) ** (1.0 / 3.0)
-        qb = 0.053 * np.sqrt((rho_s / rho_water - 1) * g * d**3) * (T ** 2.1) * (D_star ** (-0.3))
+        qb = 0.053 * np.sqrt((rho_s / rho_water - 1) * g * d**3) * (T**2.1) * (D_star ** (-0.3))
         return qb
 
-    def _calculate_reference_concentration(self, velocity: np.ndarray, depth: np.ndarray) -> np.ndarray:
+    def _calculate_reference_concentration(
+        self, velocity: np.ndarray, depth: np.ndarray
+    ) -> np.ndarray:
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
         shear_stress = self.calculate_bed_shear_stress(velocity, depth)
@@ -213,7 +231,7 @@ class SedimentTransportModel:
         tau_cr = self.calculate_critical_shear_stress()
         T = (shear_stress - tau_cr) / (tau_cr + 1e-12)
         T = np.maximum(T, 0)
-        c_a = 0.015 * (np.where(a > 0, d / a, 0)) * (T ** 1.5) * (self.sediment_props.d50 ** (-0.3))
+        c_a = 0.015 * (np.where(a > 0, d / a, 0)) * (T**1.5) * (self.sediment_props.d50 ** (-0.3))
         c_a = np.maximum(c_a, 0)
         return c_a
 
@@ -229,5 +247,3 @@ class SedimentTransportModel:
         divergence = self._calculate_divergence(transport)
         deposition = -divergence * duration / ((1 - porosity) * density + 1e-12)
         return deposition
-
-

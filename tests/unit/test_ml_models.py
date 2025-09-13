@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from hydroflow.ml.models import SedimentationPredictor, FlowPatternPredictor
+from hydroflow.ml.models import FlowPatternPredictor, SedimentationPredictor
 
 
 def test_feature_preparation():
@@ -15,7 +15,9 @@ def test_feature_preparation():
             "discharge": np.random.uniform(10, 100, 100),
         }
     )
-    precipitation = pd.DataFrame({"daily": np.random.uniform(0, 50, 30), "intensity": np.random.uniform(0, 10, 30)})
+    precipitation = pd.DataFrame(
+        {"daily": np.random.uniform(0, 50, 30), "intensity": np.random.uniform(0, 10, 30)}
+    )
     land_use = pd.DataFrame({"type": ["urban", "agricultural", "forest"], "area": [100, 200, 300]})
     bathymetry = np.random.randn(50, 50) * 2 - 5
     features = predictor.prepare_features(flow_data, precipitation, land_use, bathymetry)
@@ -39,5 +41,3 @@ def test_flow_pattern_predictor_forward():
     X = np.random.randn(5, 10)
     out = model.forward(X)
     assert out.shape == (5, 5)
-
-

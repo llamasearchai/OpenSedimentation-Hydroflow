@@ -341,14 +341,14 @@ from pydantic_settings import BaseSettings
 
 class DatabaseConfig(BaseModel):
     """Database configuration."""
-    
+
     host: str = Field(default="localhost")
     port: int = Field(default=5432)
     name: str = Field(default="hydroflow")
     user: str = Field(default="hydroflow")
     password: str = Field(default="")
     pool_size: int = Field(default=10, ge=1, le=100)
-    
+
     @property
     def url(self) -> str:
         """Generate database URL."""
@@ -357,7 +357,7 @@ class DatabaseConfig(BaseModel):
 
 class SensorConfig(BaseModel):
     """Sensor configuration."""
-    
+
     sonar_frequency: float = Field(default=200.0, gt=0)
     lidar_resolution: float = Field(default=1.0, gt=0)
     sampling_rate: float = Field(default=10.0, gt=0)
@@ -366,7 +366,7 @@ class SensorConfig(BaseModel):
 
 class ProcessingConfig(BaseModel):
     """Processing configuration."""
-    
+
     batch_size: int = Field(default=1000, ge=1)
     max_workers: int = Field(default=4, ge=1)
     chunk_size: int = Field(default=10000, ge=100)
@@ -376,7 +376,7 @@ class ProcessingConfig(BaseModel):
 
 class MLConfig(BaseModel):
     """Machine learning configuration."""
-    
+
     model_path: Path = Field(default=Path("models"))
     training_split: float = Field(default=0.8, gt=0, lt=1)
     validation_split: float = Field(default=0.1, gt=0, lt=1)
@@ -387,7 +387,7 @@ class MLConfig(BaseModel):
 
 class NotificationConfig(BaseModel):
     """Notification configuration."""
-    
+
     smtp_host: str = Field(default="localhost")
     smtp_port: int = Field(default=587)
     smtp_user: str = Field(default="")
@@ -398,48 +398,48 @@ class NotificationConfig(BaseModel):
 
 class Config(BaseSettings):
     """Main configuration class."""
-    
+
     environment: str = Field(default="development")
     debug: bool = Field(default=False)
     log_level: str = Field(default="INFO")
-    
+
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     sensor: SensorConfig = Field(default_factory=SensorConfig)
     processing: ProcessingConfig = Field(default_factory=ProcessingConfig)
     ml: MLConfig = Field(default_factory=MLConfig)
     notification: NotificationConfig = Field(default_factory=NotificationConfig)
-    
+
     # API Configuration
     api_host: str = Field(default="0.0.0.0")
     api_port: int = Field(default=8000)
     api_prefix: str = Field(default="/api/v1")
     cors_origins: list = Field(default=["*"])
-    
+
     # Storage Configuration
     data_dir: Path = Field(default=Path("data"))
     cache_dir: Path = Field(default=Path("cache"))
     output_dir: Path = Field(default=Path("output"))
-    
+
     class Config:
         """Pydantic configuration."""
-        
+
         env_file = ".env"
         env_file_encoding = "utf-8"
         env_prefix = "HYDROFLOW_"
         case_sensitive = False
-    
+
     @classmethod
     def from_yaml(cls, path: Path) -> "Config":
         """Load configuration from YAML file."""
         with open(path, "r") as f:
             data = yaml.safe_load(f)
         return cls(**data)
-    
+
     def save_yaml(self, path: Path) -> None:
         """Save configuration to YAML file."""
         with open(path, "w") as f:
             yaml.safe_dump(self.model_dump(), f, default_flow_style=False)
-    
+
     @validator("data_dir", "cache_dir", "output_dir")
     def create_directories(cls, v: Path) -> Path:
         """Create directories if they don't exist."""
@@ -484,28 +484,28 @@ logger = logging.getLogger(__name__)
 
 class BathymetricAnalyzer:
     """Advanced bathymetric data analysis."""
-    
+
     def __init__(self, config: Dict):
         """Initialize bathymetric analyzer.
-        
+
         Args:
             config: Configuration dictionary
         """
         self.config = config
         self.data_cache = {}
         self.interpolators = {}
-        
+
     def process_multibeam_sonar(
         self,
         raw_data: np.ndarray,
         metadata: Dict
     ) -> xr.Dataset:
         """Process multibeam sonar data.
-        
+
         Args:
             raw_data: Raw sonar data array
             metadata: Metadata dictionary
-            
+
         Returns:
             Processed xarray dataset
         """
@@ -515,20 +515,20 @@ class BathymetricAnalyzer:
             y = raw_data[:, 1]
             z = raw_data[:, 2]
             intensity = raw_data[:, 3] if raw_data.shape[1] > 3 else None
-            
+
             # Apply sound velocity correction
             z_corrected = self._apply_sound_velocity_correction(
                 z, metadata.get('sound_velocity', 1500)
             )
-            
+
             # Apply tidal correction
             z_corrected = self._apply_tidal_correction(
                 z_corrected, metadata.get('tidal_data')
             )
-            
+
             # Filter outliers
             z_filtered = self._filter_outliers(z_corrected)
-            
+
             # Create xarray dataset
             ds = xr.Dataset(
                 {
@@ -543,24 +543,24 @@ class BathymetricAnalyzer:
                 },
                 attrs=metadata
             )
-            
+
             return ds
-            
+
         except Exception as e:
             logger.error(f"Error processing multibeam sonar: {e}")
             raise DataProcessingError(f"Failed to process sonar data: {e}")
-    
+
     def process_lidar_bathymetry(
         self,
         point_cloud: np.ndarray,
         water_surface: Optional[np.ndarray] = None
     ) -> xr.Dataset:
         """Process LiDAR bathymetry data.
-        
+
         Args:
             point_cloud: LiDAR point cloud data
             water_surface: Water surface elevation data
-            
+
         Returns:
             Processed bathymetry dataset
         """
@@ -568,23 +568,23 @@ class BathymetricAnalyzer:
             # Separate water surface and bottom returns
             if water_surface is None:
                 water_surface = self._detect_water_surface(point_cloud)
-            
+
             # Apply refraction correction
             corrected_depths = self._apply_refraction_correction(
                 point_cloud, water_surface
             )
-            
+
             # Grid the data
             gridded_data = self._grid_point_cloud(
                 corrected_depths,
                 resolution=self.config.get('grid_resolution', 1.0)
             )
-            
+
             # Calculate derivatives
             slope = self._calculate_slope(gridded_data)
             aspect = self._calculate_aspect(gridded_data)
             curvature = self._calculate_curvature(gridded_data)
-            
+
             # Create dataset
             ds = xr.Dataset(
                 {
@@ -595,13 +595,13 @@ class BathymetricAnalyzer:
                     'roughness': self._calculate_roughness(gridded_data)
                 }
             )
-            
+
             return ds
-            
+
         except Exception as e:
             logger.error(f"Error processing LiDAR bathymetry: {e}")
             raise DataProcessingError(f"Failed to process LiDAR data: {e}")
-    
+
     def create_bathymetric_surface(
         self,
         points: np.ndarray,
@@ -610,13 +610,13 @@ class BathymetricAnalyzer:
         bounds: Optional[Tuple[float, float, float, float]] = None
     ) -> np.ndarray:
         """Create bathymetric surface from point data.
-        
+
         Args:
             points: Point data (x, y, z)
             method: Interpolation method
             resolution: Grid resolution
             bounds: Spatial bounds (xmin, ymin, xmax, ymax)
-            
+
         Returns:
             Gridded bathymetric surface
         """
@@ -625,12 +625,12 @@ class BathymetricAnalyzer:
                 points[:, 0].min(), points[:, 1].min(),
                 points[:, 0].max(), points[:, 1].max()
             )
-        
+
         # Create grid
         x_grid = np.arange(bounds[0], bounds[2], resolution)
         y_grid = np.arange(bounds[1], bounds[3], resolution)
         xx, yy = np.meshgrid(x_grid, y_grid)
-        
+
         # Interpolate based on method
         if method == 'kriging':
             surface = self._kriging_interpolation(points, xx, yy)
@@ -642,45 +642,45 @@ class BathymetricAnalyzer:
             surface = self._triangulation_interpolation(points, xx, yy)
         else:
             raise ValueError(f"Unknown interpolation method: {method}")
-        
+
         return surface
-    
+
     def detect_channel_features(
         self,
         bathymetry: np.ndarray,
         min_depth: float = 1.0
     ) -> Dict:
         """Detect channel features from bathymetry.
-        
+
         Args:
             bathymetry: Bathymetric grid
             min_depth: Minimum depth threshold
-            
+
         Returns:
             Dictionary of detected features
         """
         features = {}
-        
+
         # Detect thalweg (deepest continuous path)
         features['thalweg'] = self._find_thalweg(bathymetry)
-        
+
         # Detect banks
         features['banks'] = self._detect_banks(bathymetry, min_depth)
-        
+
         # Detect pools and riffles
         features['pools'] = self._detect_pools(bathymetry)
         features['riffles'] = self._detect_riffles(bathymetry)
-        
+
         # Detect scour holes
         features['scour_holes'] = self._detect_scour_holes(bathymetry)
-        
+
         # Calculate channel metrics
         features['metrics'] = self._calculate_channel_metrics(
             bathymetry, features
         )
-        
+
         return features
-    
+
     def calculate_volume_change(
         self,
         surface1: np.ndarray,
@@ -688,24 +688,24 @@ class BathymetricAnalyzer:
         cell_size: float = 1.0
     ) -> Dict:
         """Calculate volume change between two surfaces.
-        
+
         Args:
             surface1: First bathymetric surface
             surface2: Second bathymetric surface
             cell_size: Grid cell size
-            
+
         Returns:
             Volume change statistics
         """
         # Calculate difference
         diff = surface2 - surface1
-        
+
         # Calculate volumes
         deposition = np.where(diff > 0, diff, 0)
         erosion = np.where(diff < 0, -diff, 0)
-        
+
         cell_area = cell_size ** 2
-        
+
         results = {
             'total_deposition': np.nansum(deposition) * cell_area,
             'total_erosion': np.nansum(erosion) * cell_area,
@@ -715,9 +715,9 @@ class BathymetricAnalyzer:
             'max_erosion': np.nanmax(erosion),
             'affected_area': np.sum(np.abs(diff) > 0.1) * cell_area
         }
-        
+
         return results
-    
+
     def _apply_sound_velocity_correction(
         self,
         depths: np.ndarray,
@@ -727,7 +727,7 @@ class BathymetricAnalyzer:
         reference_velocity = 1500.0  # m/s
         correction_factor = sound_velocity / reference_velocity
         return depths * correction_factor
-    
+
     def _apply_tidal_correction(
         self,
         depths: np.ndarray,
@@ -736,10 +736,10 @@ class BathymetricAnalyzer:
         """Apply tidal correction to depths."""
         if tidal_data is None:
             return depths
-        
+
         tide_level = tidal_data.get('level', 0)
         return depths - tide_level
-    
+
     def _filter_outliers(
         self,
         data: np.ndarray,
@@ -759,20 +759,20 @@ class BathymetricAnalyzer:
             return np.where(z_scores < threshold, data, np.nan)
         else:
             return data
-    
+
     def _calculate_quality_metrics(self, data: np.ndarray) -> np.ndarray:
         """Calculate data quality metrics."""
         # Simple quality based on point density and consistency
         quality = np.ones(len(data))
-        
+
         # Reduce quality for sparse areas
         tree = cKDTree(data[:, :2])
         distances, _ = tree.query(data[:, :2], k=10)
         mean_distances = np.mean(distances, axis=1)
         quality *= np.exp(-mean_distances / np.median(mean_distances))
-        
+
         return quality
-    
+
     def _kriging_interpolation(
         self,
         points: np.ndarray,
@@ -782,20 +782,20 @@ class BathymetricAnalyzer:
         """Perform kriging interpolation."""
         from sklearn.gaussian_process import GaussianProcessRegressor
         from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-        
+
         # Setup Gaussian Process
         kernel = RBF(length_scale=10.0) + WhiteKernel(noise_level=0.1)
         gpr = GaussianProcessRegressor(kernel=kernel, alpha=0.1)
-        
+
         # Fit model
         gpr.fit(points[:, :2], points[:, 2])
-        
+
         # Predict on grid
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
         predictions = gpr.predict(grid_points)
-        
+
         return predictions.reshape(xx.shape)
-    
+
     def _idw_interpolation(
         self,
         points: np.ndarray,
@@ -806,19 +806,19 @@ class BathymetricAnalyzer:
         """Inverse distance weighting interpolation."""
         tree = cKDTree(points[:, :2])
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
-        
+
         distances, indices = tree.query(grid_points, k=min(12, len(points)))
-        
+
         # Avoid division by zero
         distances = np.maximum(distances, 1e-10)
         weights = 1.0 / distances ** power
         weights /= weights.sum(axis=1, keepdims=True)
-        
+
         values = points[indices, 2]
         interpolated = np.sum(weights * values, axis=1)
-        
+
         return interpolated.reshape(xx.shape)
-    
+
     def _spline_interpolation(
         self,
         points: np.ndarray,
@@ -827,18 +827,18 @@ class BathymetricAnalyzer:
     ) -> np.ndarray:
         """Spline interpolation."""
         from scipy.interpolate import RBFInterpolator
-        
+
         interpolator = RBFInterpolator(
             points[:, :2], points[:, 2],
             kernel='thin_plate_spline',
             smoothing=0.1
         )
-        
+
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
         interpolated = interpolator(grid_points)
-        
+
         return interpolated.reshape(xx.shape)
-    
+
     def _triangulation_interpolation(
         self,
         points: np.ndarray,
@@ -848,40 +848,40 @@ class BathymetricAnalyzer:
         """Delaunay triangulation interpolation."""
         tri = Delaunay(points[:, :2])
         interpolator = interpolate.LinearNDInterpolator(tri, points[:, 2])
-        
+
         grid_points = np.column_stack([xx.ravel(), yy.ravel()])
         interpolated = interpolator(grid_points)
-        
+
         return interpolated.reshape(xx.shape)
-    
+
     def _calculate_slope(self, grid: np.ndarray) -> np.ndarray:
         """Calculate slope from elevation grid."""
         dy, dx = np.gradient(grid)
         return np.degrees(np.arctan(np.sqrt(dx**2 + dy**2)))
-    
+
     def _calculate_aspect(self, grid: np.ndarray) -> np.ndarray:
         """Calculate aspect from elevation grid."""
         dy, dx = np.gradient(grid)
         return np.degrees(np.arctan2(-dy, dx))
-    
+
     def _calculate_curvature(self, grid: np.ndarray) -> np.ndarray:
         """Calculate curvature from elevation grid."""
         dy, dx = np.gradient(grid)
         dyy, dyx = np.gradient(dy)
         dxy, dxx = np.gradient(dx)
         return dxx + dyy
-    
+
     def _calculate_roughness(self, grid: np.ndarray, window: int = 3) -> np.ndarray:
         """Calculate surface roughness."""
         from scipy.ndimage import generic_filter
         return generic_filter(grid, np.std, size=window)
-    
+
     def _find_thalweg(self, bathymetry: np.ndarray) -> np.ndarray:
         """Find thalweg (deepest continuous path)."""
         # Implementation would use flow accumulation and routing algorithms
         # Simplified version here
         return np.argmin(bathymetry, axis=0)
-    
+
     def _detect_banks(
         self,
         bathymetry: np.ndarray,
@@ -891,18 +891,18 @@ class BathymetricAnalyzer:
         # Detect steep slopes indicating banks
         slopes = self._calculate_slope(bathymetry)
         return np.where(slopes > threshold)
-    
+
     def _detect_pools(self, bathymetry: np.ndarray) -> List[Dict]:
         """Detect pools in channel."""
         from scipy.ndimage import label, minimum_filter
-        
+
         # Find local minima
         local_min = minimum_filter(bathymetry, size=5)
         pools_mask = bathymetry == local_min
-        
+
         # Label connected components
         labeled, num_features = label(pools_mask)
-        
+
         pools = []
         for i in range(1, num_features + 1):
             mask = labeled == i
@@ -913,20 +913,20 @@ class BathymetricAnalyzer:
                 'area': np.sum(mask)
             }
             pools.append(pool)
-        
+
         return pools
-    
+
     def _detect_riffles(self, bathymetry: np.ndarray) -> List[Dict]:
         """Detect riffles in channel."""
         from scipy.ndimage import label, maximum_filter
-        
+
         # Find local maxima (shallow areas)
         local_max = maximum_filter(bathymetry, size=5)
         riffles_mask = bathymetry == local_max
-        
+
         # Label connected components
         labeled, num_features = label(riffles_mask)
-        
+
         riffles = []
         for i in range(1, num_features + 1):
             mask = labeled == i
@@ -937,20 +937,20 @@ class BathymetricAnalyzer:
                 'area': np.sum(mask)
             }
             riffles.append(riffle)
-        
+
         return riffles
-    
+
     def _detect_scour_holes(self, bathymetry: np.ndarray) -> List[Dict]:
         """Detect scour holes."""
         # Detect anomalous deep areas
         mean_depth = np.nanmean(bathymetry)
         std_depth = np.nanstd(bathymetry)
         threshold = mean_depth - 2 * std_depth
-        
+
         scour_mask = bathymetry < threshold
         from scipy.ndimage import label
         labeled, num_features = label(scour_mask)
-        
+
         scour_holes = []
         for i in range(1, num_features + 1):
             mask = labeled == i
@@ -961,9 +961,9 @@ class BathymetricAnalyzer:
                 'volume': calculate_volume(bathymetry[mask], mean_depth)
             }
             scour_holes.append(hole)
-        
+
         return scour_holes
-    
+
     def _calculate_channel_metrics(
         self,
         bathymetry: np.ndarray,
@@ -979,16 +979,16 @@ class BathymetricAnalyzer:
             'sinuosity': self._calculate_sinuosity(features.get('thalweg', [])),
             'width_depth_ratio': self._calculate_width_depth_ratio(bathymetry)
         }
-        
+
         return metrics
-    
+
     def _calculate_hydraulic_radius(self, bathymetry: np.ndarray) -> float:
         """Calculate hydraulic radius."""
         # Simplified calculation
         area = np.sum(~np.isnan(bathymetry))
         perimeter = self._calculate_wetted_perimeter(bathymetry)
         return area / perimeter if perimeter > 0 else 0
-    
+
     def _calculate_wetted_perimeter(self, bathymetry: np.ndarray) -> float:
         """Calculate wetted perimeter."""
         # Edge detection to find perimeter
@@ -997,25 +997,25 @@ class BathymetricAnalyzer:
         eroded = binary_erosion(mask)
         perimeter_mask = mask & ~eroded
         return np.sum(perimeter_mask)
-    
+
     def _calculate_sinuosity(self, thalweg: np.ndarray) -> float:
         """Calculate channel sinuosity."""
         if len(thalweg) < 2:
             return 1.0
-        
+
         # Calculate path length vs straight-line distance
         path_length = np.sum(np.sqrt(np.sum(np.diff(thalweg, axis=0)**2, axis=1)))
         straight_distance = np.sqrt(np.sum((thalweg[-1] - thalweg[0])**2))
-        
+
         return path_length / straight_distance if straight_distance > 0 else 1.0
-    
+
     def _calculate_width_depth_ratio(self, bathymetry: np.ndarray) -> float:
         """Calculate width to depth ratio."""
         # Simplified calculation
         width = bathymetry.shape[1]
         mean_depth = np.nanmean(bathymetry)
         return width / abs(mean_depth) if mean_depth != 0 else 0
-    
+
     def _detect_water_surface(self, point_cloud: np.ndarray) -> np.ndarray:
         """Detect water surface from LiDAR returns."""
         # Use intensity and return number to identify water surface
@@ -1024,7 +1024,7 @@ class BathymetricAnalyzer:
         percentile_95 = np.percentile(z_values, 95)
         water_surface = np.full_like(z_values, percentile_95)
         return water_surface
-    
+
     def _apply_refraction_correction(
         self,
         point_cloud: np.ndarray,
@@ -1034,17 +1034,17 @@ class BathymetricAnalyzer:
         # Snell's law correction
         n_air = 1.0
         n_water = 1.333
-        
+
         corrected = point_cloud.copy()
         underwater = point_cloud[:, 2] < water_surface
-        
+
         if np.any(underwater):
             depth = water_surface[underwater] - point_cloud[underwater, 2]
             corrected_depth = depth * (n_water / n_air)
             corrected[underwater, 2] = water_surface[underwater] - corrected_depth
-        
+
         return corrected
-    
+
     def _grid_point_cloud(
         self,
         points: np.ndarray,
@@ -1054,13 +1054,13 @@ class BathymetricAnalyzer:
         # Create regular grid from irregular points
         x_min, y_min = points[:, :2].min(axis=0)
         x_max, y_max = points[:, :2].max(axis=0)
-        
+
         x_bins = np.arange(x_min, x_max + resolution, resolution)
         y_bins = np.arange(y_min, y_max + resolution, resolution)
-        
+
         # Bin the points and calculate mean elevation
         grid = np.full((len(y_bins)-1, len(x_bins)-1), np.nan)
-        
+
         for i in range(len(y_bins)-1):
             for j in range(len(x_bins)-1):
                 mask = (
@@ -1069,7 +1069,7 @@ class BathymetricAnalyzer:
                 )
                 if np.any(mask):
                     grid[i, j] = np.mean(points[mask, 2])
-        
+
         return grid
 ```
 
@@ -1093,32 +1093,32 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SedimentProperties:
     """Sediment properties data class."""
-    
+
     d50: float  # Median grain size (mm)
     d90: float  # 90th percentile grain size (mm)
     density: float = 2650  # kg/m³
     porosity: float = 0.4
     angle_of_repose: float = 30  # degrees
     settling_velocity: Optional[float] = None
-    
+
     def __post_init__(self):
         """Calculate derived properties."""
         if self.settling_velocity is None:
             self.settling_velocity = self.calculate_settling_velocity()
-    
+
     def calculate_settling_velocity(self) -> float:
         """Calculate settling velocity using Stokes' law or empirical formulas."""
         # Convert d50 to meters
         d = self.d50 / 1000
-        
+
         # Water properties at 20°C
         rho_water = 1000  # kg/m³
         nu = 1e-6  # Kinematic viscosity (m²/s)
         g = 9.81  # Gravity (m/s²)
-        
+
         # Calculate dimensionless grain size
         d_star = d * ((self.density/rho_water - 1) * g / nu**2)**(1/3)
-        
+
         # Use appropriate formula based on grain size
         if d_star < 1:
             # Stokes' law
@@ -1129,16 +1129,16 @@ class SedimentProperties:
         else:
             # Newton's law
             ws = np.sqrt((self.density/rho_water - 1) * g * d)
-        
+
         return ws
 
 
 class SedimentTransportModel:
     """Advanced sediment transport modeling."""
-    
+
     def __init__(self, config: Dict):
         """Initialize sediment transport model.
-        
+
         Args:
             config: Configuration dictionary
         """
@@ -1146,14 +1146,14 @@ class SedimentTransportModel:
         self.sediment_props = None
         self.flow_field = None
         self.bathymetry = None
-        
+
     def set_sediment_properties(self, properties: SedimentProperties):
         """Set sediment properties."""
         self.sediment_props = properties
-        
+
     def set_flow_field(self, velocity: np.ndarray, depth: np.ndarray):
         """Set flow field data.
-        
+
         Args:
             velocity: Velocity field (m/s)
             depth: Water depth field (m)
@@ -1162,7 +1162,7 @@ class SedimentTransportModel:
             'velocity': velocity,
             'depth': depth
         }
-        
+
     def calculate_bed_shear_stress(
         self,
         velocity: np.ndarray,
@@ -1170,78 +1170,78 @@ class SedimentTransportModel:
         roughness: float = 0.03
     ) -> np.ndarray:
         """Calculate bed shear stress.
-        
+
         Args:
             velocity: Flow velocity (m/s)
             depth: Water depth (m)
             roughness: Manning's roughness coefficient
-            
+
         Returns:
             Bed shear stress (Pa)
         """
         rho_water = 1000  # kg/m³
         g = 9.81  # m/s²
-        
+
         # Calculate friction factor using Manning equation
         # τ = ρ * g * n² * v² / h^(1/3)
         tau = rho_water * g * roughness**2 * velocity**2 / depth**(1/3)
-        
+
         return tau
-    
+
     def calculate_shields_parameter(
         self,
         shear_stress: np.ndarray
     ) -> np.ndarray:
         """Calculate Shields parameter.
-        
+
         Args:
             shear_stress: Bed shear stress (Pa)
-            
+
         Returns:
             Shields parameter (dimensionless)
         """
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         rho_water = 1000  # kg/m³
         g = 9.81  # m/s²
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         theta = shear_stress / ((self.sediment_props.density - rho_water) * g * d)
-        
+
         return theta
-    
+
     def calculate_critical_shear_stress(self) -> float:
         """Calculate critical shear stress for sediment motion.
-        
+
         Returns:
             Critical shear stress (Pa)
         """
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         rho_water = 1000  # kg/m³
         g = 9.81  # m/s²
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         # Shields criterion
         theta_cr = 0.047  # Critical Shields parameter for uniform sediment
-        
+
         tau_cr = theta_cr * (self.sediment_props.density - rho_water) * g * d
-        
+
         return tau_cr
-    
+
     def calculate_bedload_transport(
         self,
         shear_stress: np.ndarray,
         method: str = 'meyer-peter'
     ) -> np.ndarray:
         """Calculate bedload transport rate.
-        
+
         Args:
             shear_stress: Bed shear stress (Pa)
             method: Calculation method
-            
+
         Returns:
             Bedload transport rate (kg/m/s)
         """
@@ -1253,7 +1253,7 @@ class SedimentTransportModel:
             return self._vanrijn_bedload(shear_stress)
         else:
             raise ValueError(f"Unknown method: {method}")
-    
+
     def calculate_suspended_load(
         self,
         velocity: np.ndarray,
@@ -1261,28 +1261,28 @@ class SedimentTransportModel:
         concentration: Optional[np.ndarray] = None
     ) -> np.ndarray:
         """Calculate suspended sediment transport.
-        
+
         Args:
             velocity: Flow velocity (m/s)
             depth: Water depth (m)
             concentration: Sediment concentration (kg/m³)
-            
+
         Returns:
             Suspended load transport rate (kg/m/s)
         """
         if concentration is None:
             concentration = self._calculate_reference_concentration(velocity, depth)
-        
+
         # Rouse profile integration
         ws = self.sediment_props.settling_velocity
         kappa = 0.4  # von Karman constant
-        
+
         # Simplified suspended load calculation
         # qs = integral of (c * v) over depth
         qs = concentration * velocity * depth
-        
+
         return qs
-    
+
     def solve_exner_equation(
         self,
         initial_bed: np.ndarray,
@@ -1290,37 +1290,37 @@ class SedimentTransportModel:
         dt: float = 1.0
     ) -> xr.Dataset:
         """Solve Exner equation for bed evolution.
-        
+
         Args:
             initial_bed: Initial bed elevation
             time_span: Time span for simulation (start, end)
             dt: Time step
-            
+
         Returns:
             Dataset with bed evolution results
         """
         times = np.arange(time_span[0], time_span[1], dt)
         bed_evolution = np.zeros((len(times), *initial_bed.shape))
         bed_evolution[0] = initial_bed
-        
+
         for i, t in enumerate(times[1:], 1):
             # Calculate sediment transport
             velocity = self.flow_field['velocity']
             depth = self.flow_field['depth']
-            
+
             shear_stress = self.calculate_bed_shear_stress(velocity, depth)
             bedload = self.calculate_bedload_transport(shear_stress)
-            
+
             # Calculate divergence of sediment flux
             div_qs = self._calculate_divergence(bedload)
-            
+
             # Update bed elevation (Exner equation)
             # ∂z/∂t = -1/(1-p) * ∇·qs
             porosity = self.sediment_props.porosity
             bed_change = -dt / (1 - porosity) * div_qs
-            
+
             bed_evolution[i] = bed_evolution[i-1] + bed_change
-        
+
         # Create xarray dataset
         ds = xr.Dataset(
             {
@@ -1333,52 +1333,52 @@ class SedimentTransportModel:
                 'x': np.arange(initial_bed.shape[1])
             }
         )
-        
+
         return ds
-    
+
     def predict_deposition_patterns(
         self,
         flow_scenarios: List[Dict],
         time_horizon: float = 365 * 24 * 3600  # 1 year in seconds
     ) -> np.ndarray:
         """Predict long-term deposition patterns.
-        
+
         Args:
             flow_scenarios: List of flow scenarios with probabilities
             time_horizon: Prediction time horizon (seconds)
-            
+
         Returns:
             Predicted deposition patterns
         """
         total_deposition = np.zeros_like(self.bathymetry)
-        
+
         for scenario in flow_scenarios:
             velocity = scenario['velocity']
             depth = scenario['depth']
             probability = scenario['probability']
             duration = scenario.get('duration', time_horizon * probability)
-            
+
             # Calculate transport for this scenario
             shear_stress = self.calculate_bed_shear_stress(velocity, depth)
             transport = self.calculate_bedload_transport(shear_stress)
-            
+
             # Calculate deposition
             deposition = self._calculate_deposition(transport, duration)
             total_deposition += deposition * probability
-        
+
         return total_deposition
-    
+
     def calibrate_model(
         self,
         observed_transport: np.ndarray,
         measured_conditions: Dict
     ) -> Dict:
         """Calibrate model parameters.
-        
+
         Args:
             observed_transport: Observed transport rates
             measured_conditions: Measured flow conditions
-            
+
         Returns:
             Calibrated parameters
         """
@@ -1388,100 +1388,100 @@ class SedimentTransportModel:
                 'roughness': params[0],
                 'transport_coefficient': params[1]
             })
-            
+
             # Calculate predicted transport
             predicted = self.calculate_bedload_transport(
                 measured_conditions['shear_stress']
             )
-            
+
             # Calculate error
             error = np.sum((predicted - observed_transport)**2)
             return error
-        
+
         # Initial guess
         x0 = [0.03, 8.0]  # roughness, transport coefficient
-        
+
         # Optimization
         result = minimize(objective, x0, method='L-BFGS-B',
                          bounds=[(0.01, 0.1), (3.0, 15.0)])
-        
+
         calibrated_params = {
             'roughness': result.x[0],
             'transport_coefficient': result.x[1],
             'rmse': np.sqrt(result.fun / len(observed_transport))
         }
-        
+
         return calibrated_params
-    
+
     def _meyer_peter_muller(self, shear_stress: np.ndarray) -> np.ndarray:
         """Meyer-Peter and Müller bedload formula."""
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         rho_water = 1000  # kg/m³
         rho_s = self.sediment_props.density
         g = 9.81  # m/s²
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         # Critical shear stress
         tau_cr = self.calculate_critical_shear_stress()
-        
+
         # Meyer-Peter and Müller formula
         # qb = 8 * sqrt((ρs/ρw - 1) * g * d³) * (τ - τcr)^1.5
-        
+
         excess_stress = np.maximum(shear_stress - tau_cr, 0)
         qb = 8 * np.sqrt((rho_s/rho_water - 1) * g * d**3) * excess_stress**1.5
-        
+
         return qb
-    
+
     def _einstein_bedload(self, shear_stress: np.ndarray) -> np.ndarray:
         """Einstein bedload formula."""
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         rho_water = 1000  # kg/m³
         rho_s = self.sediment_props.density
         g = 9.81  # m/s²
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         # Einstein parameter
         phi = shear_stress / ((rho_s - rho_water) * g * d)
-        
+
         # Einstein bedload function (simplified)
         phi_b = 2.15 * np.exp(-0.391 / phi) if phi > 0 else 0
-        
+
         # Bedload transport rate
         qb = phi_b * np.sqrt((rho_s/rho_water - 1) * g * d**3)
-        
+
         return qb
-    
+
     def _vanrijn_bedload(self, shear_stress: np.ndarray) -> np.ndarray:
         """Van Rijn bedload formula."""
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         rho_water = 1000  # kg/m³
         rho_s = self.sediment_props.density
         g = 9.81  # m/s²
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         # Transport stage parameter
         tau_cr = self.calculate_critical_shear_stress()
         T = (shear_stress - tau_cr) / tau_cr
         T = np.maximum(T, 0)
-        
+
         # Van Rijn formula
         # qb = 0.053 * sqrt((s-1) * g * d³) * T^2.1 * D*^-0.3
-        
+
         # Dimensionless grain size
         nu = 1e-6  # Kinematic viscosity
         D_star = d * ((rho_s/rho_water - 1) * g / nu**2)**(1/3)
-        
+
         qb = 0.053 * np.sqrt((rho_s/rho_water - 1) * g * d**3) * \
              T**2.1 * D_star**(-0.3)
-        
+
         return qb
-    
+
     def _calculate_reference_concentration(
         self,
         velocity: np.ndarray,
@@ -1490,27 +1490,27 @@ class SedimentTransportModel:
         """Calculate reference concentration for suspended sediment."""
         if self.sediment_props is None:
             raise ValueError("Sediment properties not set")
-        
+
         # Van Rijn reference concentration formula
         d = self.sediment_props.d50 / 1000  # Convert to meters
-        
+
         # Shear velocity
         shear_stress = self.calculate_bed_shear_stress(velocity, depth)
         u_star = np.sqrt(shear_stress / 1000)  # Shear velocity
-        
+
         # Reference concentration at height a = 2*d50
         a = 2 * d
-        
+
         # Transport stage parameter
         tau_cr = self.calculate_critical_shear_stress()
         T = (shear_stress - tau_cr) / tau_cr
         T = np.maximum(T, 0)
-        
+
         # Reference concentration (Van Rijn)
         c_a = 0.015 * (d/a) * T**1.5 * self.sediment_props.d50**(-0.3)
-        
+
         return c_a
-    
+
     def _calculate_divergence(self, flux: np.ndarray) -> np.ndarray:
         """Calculate divergence of sediment flux."""
         # Calculate gradients
@@ -1519,9 +1519,9 @@ class SedimentTransportModel:
             divergence = dx + dy
         else:
             divergence = np.gradient(flux)
-        
+
         return divergence
-    
+
     def _calculate_deposition(
         self,
         transport: np.ndarray,
@@ -1531,13 +1531,13 @@ class SedimentTransportModel:
         # Simplified deposition calculation
         # Deposition occurs where transport capacity decreases
         divergence = self._calculate_divergence(transport)
-        
+
         # Convert to bed elevation change
         porosity = self.sediment_props.porosity
         density = self.sediment_props.density
-        
+
         deposition = -divergence * duration / ((1 - porosity) * density)
-        
+
         return deposition
 ```
 
@@ -1564,28 +1564,28 @@ logger = logging.getLogger(__name__)
 
 class VegetationAnalyzer:
     """Vegetation detection and management analysis."""
-    
+
     def __init__(self, config: Dict):
         """Initialize vegetation analyzer.
-        
+
         Args:
             config: Configuration dictionary
         """
         self.config = config
         self.classifier = None
         self.species_database = self._load_species_database()
-        
+
     def analyze_satellite_imagery(
         self,
         imagery_path: str,
         bands: List[str] = ['red', 'green', 'blue', 'nir']
     ) -> Dict:
         """Analyze satellite imagery for vegetation.
-        
+
         Args:
             imagery_path: Path to satellite imagery
             bands: List of spectral bands to use
-            
+
         Returns:
             Vegetation analysis results
         """
@@ -1595,24 +1595,24 @@ class VegetationAnalyzer:
                 imagery = src.read()
                 transform = src.transform
                 crs = src.crs
-            
+
             # Calculate vegetation indices
             indices = self._calculate_vegetation_indices(imagery, bands)
-            
+
             # Classify vegetation
             classification = self._classify_vegetation(imagery, indices)
-            
+
             # Detect invasive species
             invasive_areas = self._detect_invasive_species(classification, indices)
-            
+
             # Calculate vegetation metrics
             metrics = self._calculate_vegetation_metrics(classification)
-            
+
             # Generate management zones
             management_zones = self._generate_management_zones(
                 classification, invasive_areas
             )
-            
+
             results = {
                 'classification': classification,
                 'indices': indices,
@@ -1622,42 +1622,42 @@ class VegetationAnalyzer:
                 'transform': transform,
                 'crs': crs
             }
-            
+
             return results
-            
+
         except Exception as e:
             logger.error(f"Error analyzing satellite imagery: {e}")
             raise
-    
+
     def detect_aquatic_vegetation(
         self,
         multispectral_data: np.ndarray,
         water_mask: np.ndarray
     ) -> Dict:
         """Detect aquatic vegetation in water bodies.
-        
+
         Args:
             multispectral_data: Multispectral imagery data
             water_mask: Binary mask of water areas
-            
+
         Returns:
             Aquatic vegetation detection results
         """
         # Focus on water areas
         water_data = multispectral_data * water_mask[np.newaxis, :, :]
-        
+
         # Calculate aquatic vegetation indices
         ndavi = self._calculate_ndavi(multispectral_data)  # Normalized Difference Aquatic Vegetation Index
         fai = self._calculate_fai(multispectral_data)  # Floating Algae Index
-        
+
         # Detect different types of aquatic vegetation
         submerged = self._detect_submerged_vegetation(water_data, ndavi)
         floating = self._detect_floating_vegetation(water_data, fai)
         emergent = self._detect_emergent_vegetation(water_data, ndavi)
-        
+
         # Calculate biomass estimates
         biomass = self._estimate_biomass(submerged, floating, emergent)
-        
+
         results = {
             'submerged': submerged,
             'floating': floating,
@@ -1665,36 +1665,36 @@ class VegetationAnalyzer:
             'biomass': biomass,
             'total_coverage': np.sum(submerged | floating | emergent) / np.sum(water_mask)
         }
-        
+
         return results
-    
+
     def identify_invasive_species(
         self,
         spectral_data: np.ndarray,
         known_signatures: Optional[Dict] = None
     ) -> Dict:
         """Identify invasive species using spectral signatures.
-        
+
         Args:
             spectral_data: Multispectral or hyperspectral data
             known_signatures: Known spectral signatures of invasive species
-            
+
         Returns:
             Invasive species identification results
         """
         if known_signatures is None:
             known_signatures = self._get_default_invasive_signatures()
-        
+
         identified_species = {}
-        
+
         for species_name, signature in known_signatures.items():
             # Match spectral signatures
             similarity = self._spectral_similarity(spectral_data, signature)
-            
+
             # Threshold for detection
             threshold = self.config.get('invasive_detection_threshold', 0.8)
             detected = similarity > threshold
-            
+
             if np.any(detected):
                 identified_species[species_name] = {
                     'mask': detected,
@@ -1702,9 +1702,9 @@ class VegetationAnalyzer:
                     'confidence': np.mean(similarity[detected]),
                     'locations': self._extract_locations(detected)
                 }
-        
+
         return identified_species
-    
+
     def calculate_removal_priority(
         self,
         vegetation_map: np.ndarray,
@@ -1712,12 +1712,12 @@ class VegetationAnalyzer:
         ecological_value: np.ndarray
     ) -> np.ndarray:
         """Calculate vegetation removal priority.
-        
+
         Args:
             vegetation_map: Vegetation presence/density map
             flow_impact: Impact on water flow
             ecological_value: Ecological value map
-            
+
         Returns:
             Removal priority map
         """
@@ -1725,7 +1725,7 @@ class VegetationAnalyzer:
         vegetation_norm = vegetation_map / np.max(vegetation_map)
         flow_norm = flow_impact / np.max(flow_impact)
         ecological_norm = ecological_value / np.max(ecological_value)
-        
+
         # Calculate priority score
         # High priority: high vegetation, high flow impact, low ecological value
         priority = (
@@ -1733,41 +1733,41 @@ class VegetationAnalyzer:
             self.config.get('flow_weight', 0.5) * flow_norm +
             self.config.get('ecological_weight', 0.2) * (1 - ecological_norm)
         )
-        
+
         return priority
-    
+
     def optimize_removal_timing(
         self,
         species_data: Dict,
         environmental_conditions: pd.DataFrame
     ) -> pd.DataFrame:
         """Optimize timing for vegetation removal.
-        
+
         Args:
             species_data: Species growth and reproduction data
             environmental_conditions: Environmental conditions over time
-            
+
         Returns:
             Optimal removal schedule
         """
         schedule = []
-        
+
         for species, data in species_data.items():
             # Consider growth cycle
             growth_rate = data.get('growth_rate', [])
             reproduction_period = data.get('reproduction_period', [])
-            
+
             # Find optimal removal window
             # Best time: before reproduction, after vulnerable period
             optimal_months = self._find_optimal_removal_window(
                 growth_rate, reproduction_period
             )
-            
+
             # Consider environmental constraints
             feasible_months = self._check_environmental_feasibility(
                 optimal_months, environmental_conditions
             )
-            
+
             schedule.append({
                 'species': species,
                 'optimal_months': optimal_months,
@@ -1775,9 +1775,9 @@ class VegetationAnalyzer:
                 'priority': data.get('priority', 'medium'),
                 'estimated_effort': data.get('effort', 'medium')
             })
-        
+
         return pd.DataFrame(schedule)
-    
+
     def estimate_regrowth_potential(
         self,
         species: str,
@@ -1785,20 +1785,20 @@ class VegetationAnalyzer:
         environmental_factors: Dict
     ) -> Dict:
         """Estimate vegetation regrowth potential.
-        
+
         Args:
             species: Species name
             removal_method: Method of removal
             environmental_factors: Environmental conditions
-            
+
         Returns:
             Regrowth potential estimates
         """
         species_info = self.species_database.get(species, {})
-        
+
         # Base regrowth rate
         base_rate = species_info.get('regrowth_rate', 0.5)
-        
+
         # Adjust for removal method
         method_effectiveness = {
             'mechanical': 0.7,
@@ -1807,28 +1807,28 @@ class VegetationAnalyzer:
             'manual': 0.8
         }
         removal_factor = method_effectiveness.get(removal_method, 0.5)
-        
+
         # Adjust for environmental factors
         temp_factor = self._temperature_growth_factor(
             environmental_factors.get('temperature', 20)
         )
         nutrient_factor = environmental_factors.get('nutrients', 1.0)
         light_factor = environmental_factors.get('light', 1.0)
-        
+
         # Calculate regrowth potential
         regrowth_rate = base_rate * (1 - removal_factor) * temp_factor * \
                        nutrient_factor * light_factor
-        
+
         # Estimate time to full regrowth
         time_to_regrowth = 1 / regrowth_rate if regrowth_rate > 0 else float('inf')
-        
+
         return {
             'regrowth_rate': regrowth_rate,
             'time_to_regrowth_days': time_to_regrowth * 365,
             'probability_of_regrowth': min(regrowth_rate * 2, 1.0),
             'recommended_monitoring_frequency': self._recommend_monitoring(regrowth_rate)
         }
-    
+
     def _calculate_vegetation_indices(
         self,
         imagery: np.ndarray,
@@ -1836,32 +1836,32 @@ class VegetationAnalyzer:
     ) -> Dict:
         """Calculate various vegetation indices."""
         indices = {}
-        
+
         # Get band indices
         band_map = {band: i for i, band in enumerate(bands)}
-        
+
         # NDVI (Normalized Difference Vegetation Index)
         if 'nir' in band_map and 'red' in band_map:
             nir = imagery[band_map['nir']]
             red = imagery[band_map['red']]
             indices['ndvi'] = (nir - red) / (nir + red + 1e-10)
-        
+
         # EVI (Enhanced Vegetation Index)
         if all(b in band_map for b in ['nir', 'red', 'blue']):
             nir = imagery[band_map['nir']]
             red = imagery[band_map['red']]
             blue = imagery[band_map['blue']]
             indices['evi'] = 2.5 * (nir - red) / (nir + 6*red - 7.5*blue + 1)
-        
+
         # SAVI (Soil Adjusted Vegetation Index)
         if 'nir' in band_map and 'red' in band_map:
             nir = imagery[band_map['nir']]
             red = imagery[band_map['red']]
             L = 0.5  # Soil brightness correction factor
             indices['savi'] = (nir - red) / (nir + red + L) * (1 + L)
-        
+
         return indices
-    
+
     def _classify_vegetation(
         self,
         imagery: np.ndarray,
@@ -1874,9 +1874,9 @@ class VegetationAnalyzer:
             features.append(band.flatten())
         for index in indices.values():
             features.append(index.flatten())
-        
+
         features = np.array(features).T
-        
+
         # Use pre-trained classifier or simple thresholding
         if self.classifier is not None:
             classification = self.classifier.predict(features)
@@ -1890,9 +1890,9 @@ class VegetationAnalyzer:
             classification[(ndvi >= 0.2) & (ndvi < 0.4)] = 2  # Sparse vegetation
             classification[(ndvi >= 0.4) & (ndvi < 0.6)] = 3  # Moderate vegetation
             classification[ndvi >= 0.6] = 4  # Dense vegetation
-        
+
         return classification
-    
+
     def _detect_invasive_species(
         self,
         classification: np.ndarray,
@@ -1901,27 +1901,27 @@ class VegetationAnalyzer:
         """Detect potential invasive species areas."""
         # Use spectral characteristics typical of invasive species
         # This is a simplified approach
-        
+
         invasive_mask = np.zeros_like(classification, dtype=bool)
-        
+
         # Example: Dense vegetation in unexpected areas
         ndvi = indices.get('ndvi', np.zeros_like(classification))
-        
+
         # High NDVI in water margins (potential invasive aquatic plants)
         water_margin = self._detect_water_margins(classification)
         invasive_mask |= (ndvi > 0.7) & water_margin
-        
+
         # Unusual vegetation patterns (clusters)
         vegetation_mask = classification >= 3
         clusters = self._detect_unusual_clusters(vegetation_mask)
         invasive_mask |= clusters
-        
+
         return invasive_mask
-    
+
     def _calculate_vegetation_metrics(self, classification: np.ndarray) -> Dict:
         """Calculate vegetation coverage metrics."""
         total_pixels = classification.size
-        
+
         metrics = {
             'total_area': total_pixels,
             'water_coverage': np.sum(classification == 0) / total_pixels,
@@ -1931,9 +1931,9 @@ class VegetationAnalyzer:
             'dense_vegetation_coverage': np.sum(classification == 4) / total_pixels,
             'vegetation_fragmentation': self._calculate_fragmentation(classification >= 2)
         }
-        
+
         return metrics
-    
+
     def _generate_management_zones(
         self,
         classification: np.ndarray,
@@ -1941,37 +1941,37 @@ class VegetationAnalyzer:
     ) -> gpd.GeoDataFrame:
         """Generate vegetation management zones."""
         zones = []
-        
+
         # High priority zones (invasive species)
         if np.any(invasive_areas):
             high_priority = self._create_zones_from_mask(
                 invasive_areas, 'high_priority'
             )
             zones.extend(high_priority)
-        
+
         # Medium priority zones (dense vegetation near channels)
         dense_vegetation = classification == 4
         medium_priority = self._create_zones_from_mask(
             dense_vegetation, 'medium_priority'
         )
         zones.extend(medium_priority)
-        
+
         # Low priority zones (moderate vegetation)
         moderate_vegetation = classification == 3
         low_priority = self._create_zones_from_mask(
             moderate_vegetation, 'low_priority'
         )
         zones.extend(low_priority)
-        
+
         # Create GeoDataFrame
         if zones:
             gdf = gpd.GeoDataFrame(zones)
             gdf = gdf.dissolve(by='priority').reset_index()
         else:
             gdf = gpd.GeoDataFrame()
-        
+
         return gdf
-    
+
     def _load_species_database(self) -> Dict:
         """Load species characteristics database."""
         # In practice, this would load from a database or file
@@ -1995,7 +1995,7 @@ class VegetationAnalyzer:
                 'regrowth_rate': 0.6
             }
         }
-    
+
     def _calculate_ndavi(self, data: np.ndarray) -> np.ndarray:
         """Calculate Normalized Difference Aquatic Vegetation Index."""
         # NDAVI = (NIR - Blue) / (NIR + Blue)
@@ -2003,7 +2003,7 @@ class VegetationAnalyzer:
         nir = data[3] if data.shape[0] > 3 else data[0]
         blue = data[2] if data.shape[0] > 2 else data[0]
         return (nir - blue) / (nir + blue + 1e-10)
-    
+
     def _calculate_fai(self, data: np.ndarray) -> np.ndarray:
         """Calculate Floating Algae Index."""
         # FAI uses NIR, red, and SWIR bands
@@ -2013,15 +2013,15 @@ class VegetationAnalyzer:
             red = data[0]
             # Approximate SWIR if not available
             swir = data[4] if data.shape[0] > 4 else nir * 0.8
-            
+
             # Linear baseline between red and SWIR
             baseline = red + (swir - red) * (860 - 660) / (1640 - 660)
             fai = nir - baseline
         else:
             fai = np.zeros_like(data[0])
-        
+
         return fai
-    
+
     def _detect_submerged_vegetation(
         self,
         water_data: np.ndarray,
@@ -2030,7 +2030,7 @@ class VegetationAnalyzer:
         """Detect submerged aquatic vegetation."""
         # Submerged vegetation has lower NDAVI values but still positive
         return (ndavi > 0.1) & (ndavi < 0.4)
-    
+
     def _detect_floating_vegetation(
         self,
         water_data: np.ndarray,
@@ -2039,7 +2039,7 @@ class VegetationAnalyzer:
         """Detect floating vegetation."""
         # Floating vegetation has high FAI values
         return fai > 0.05
-    
+
     def _detect_emergent_vegetation(
         self,
         water_data: np.ndarray,
@@ -2048,7 +2048,7 @@ class VegetationAnalyzer:
         """Detect emergent vegetation."""
         # Emergent vegetation has high NDAVI values
         return ndavi > 0.4
-    
+
     def _estimate_biomass(
         self,
         submerged: np.ndarray,
@@ -2062,20 +2062,20 @@ class VegetationAnalyzer:
             'floating': 2.0,
             'emergent': 3.5
         }
-        
+
         total_biomass = (
             np.sum(submerged) * biomass_factors['submerged'] +
             np.sum(floating) * biomass_factors['floating'] +
             np.sum(emergent) * biomass_factors['emergent']
         )
-        
+
         return {
             'total': total_biomass,
             'submerged': np.sum(submerged) * biomass_factors['submerged'],
             'floating': np.sum(floating) * biomass_factors['floating'],
             'emergent': np.sum(emergent) * biomass_factors['emergent']
         }
-    
+
     def _get_default_invasive_signatures(self) -> Dict:
         """Get default spectral signatures for common invasive species."""
         return {
@@ -2083,7 +2083,7 @@ class VegetationAnalyzer:
             'giant_salvinia': np.array([0.12, 0.28, 0.15, 0.78]),
             'hydrilla': np.array([0.08, 0.15, 0.12, 0.45])
         }
-    
+
     def _spectral_similarity(
         self,
         data: np.ndarray,
@@ -2094,38 +2094,38 @@ class VegetationAnalyzer:
         n_bands = min(data.shape[0], len(signature))
         data_subset = data[:n_bands]
         signature_subset = signature[:n_bands]
-        
+
         # Calculate spectral angle
         dot_product = np.sum(
             data_subset * signature_subset[:, np.newaxis, np.newaxis],
             axis=0
         )
-        
+
         data_norm = np.sqrt(np.sum(data_subset**2, axis=0))
         signature_norm = np.sqrt(np.sum(signature_subset**2))
-        
+
         cos_angle = dot_product / (data_norm * signature_norm + 1e-10)
         cos_angle = np.clip(cos_angle, -1, 1)
-        
+
         # Convert to similarity (1 = identical, 0 = orthogonal)
         similarity = (cos_angle + 1) / 2
-        
+
         return similarity
-    
+
     def _extract_locations(self, mask: np.ndarray) -> List[Tuple[int, int]]:
         """Extract location coordinates from mask."""
         locations = []
-        
+
         # Find connected components
         labeled, num_features = ndimage.label(mask)
-        
+
         for i in range(1, num_features + 1):
             component = labeled == i
             centroid = ndimage.center_of_mass(component)
             locations.append((int(centroid[0]), int(centroid[1])))
-        
+
         return locations
-    
+
     def _find_optimal_removal_window(
         self,
         growth_rate: List[float],
@@ -2135,7 +2135,7 @@ class VegetationAnalyzer:
         # Avoid reproduction period
         all_months = set(range(1, 13))
         non_reproduction = all_months - set(reproduction_period)
-        
+
         # Prefer months with lower growth rate
         if growth_rate:
             sorted_months = sorted(
@@ -2143,9 +2143,9 @@ class VegetationAnalyzer:
                 key=lambda m: growth_rate[m-1] if m-1 < len(growth_rate) else 1
             )
             return sorted_months[:3]  # Return top 3 months
-        
+
         return list(non_reproduction)[:3]
-    
+
     def _check_environmental_feasibility(
         self,
         months: List[int],
@@ -2153,22 +2153,22 @@ class VegetationAnalyzer:
     ) -> List[int]:
         """Check environmental feasibility for removal operations."""
         feasible = []
-        
+
         for month in months:
             # Check conditions for the month
             month_conditions = conditions[conditions['month'] == month]
-            
+
             if not month_conditions.empty:
                 # Check water levels, weather, etc.
                 avg_water_level = month_conditions['water_level'].mean()
                 avg_precipitation = month_conditions['precipitation'].mean()
-                
+
                 # Feasible if water level is low and precipitation is minimal
                 if avg_water_level < 2.0 and avg_precipitation < 50:
                     feasible.append(month)
-        
+
         return feasible if feasible else months[:1]  # Return at least one month
-    
+
     def _temperature_growth_factor(self, temperature: float) -> float:
         """Calculate growth factor based on temperature."""
         # Optimal growth around 25-30°C
@@ -2179,7 +2179,7 @@ class VegetationAnalyzer:
             return 1.0 - abs(temperature - optimal) / 20
         else:
             return 0.5
-    
+
     def _recommend_monitoring(self, regrowth_rate: float) -> str:
         """Recommend monitoring frequency based on regrowth rate."""
         if regrowth_rate > 0.8:
@@ -2190,26 +2190,26 @@ class VegetationAnalyzer:
             return "Monthly"
         else:
             return "Quarterly"
-    
+
     def _detect_water_margins(self, classification: np.ndarray) -> np.ndarray:
         """Detect water margin areas."""
         water_mask = classification == 0
-        
+
         # Dilate water mask to get margins
         kernel = np.ones((5, 5), np.uint8)
         dilated = cv2.dilate(water_mask.astype(np.uint8), kernel)
         margins = dilated & ~water_mask
-        
+
         return margins
-    
+
     def _detect_unusual_clusters(self, vegetation_mask: np.ndarray) -> np.ndarray:
         """Detect unusual vegetation clusters."""
         # Use DBSCAN to find clusters
         points = np.column_stack(np.where(vegetation_mask))
-        
+
         if len(points) > 0:
             clustering = DBSCAN(eps=3, min_samples=10).fit(points)
-            
+
             # Mark small, isolated clusters as unusual
             unusual = np.zeros_like(vegetation_mask)
             for label in set(clustering.labels_):
@@ -2217,25 +2217,25 @@ class VegetationAnalyzer:
                     cluster_points = points[clustering.labels_ == label]
                     if len(cluster_points) < 100:  # Small clusters
                         unusual[cluster_points[:, 0], cluster_points[:, 1]] = True
-            
+
             return unusual
-        
+
         return np.zeros_like(vegetation_mask)
-    
+
     def _calculate_fragmentation(self, mask: np.ndarray) -> float:
         """Calculate fragmentation index."""
         if not np.any(mask):
             return 0.0
-        
+
         # Count patches
         labeled, num_patches = ndimage.label(mask)
-        
+
         # Calculate fragmentation as ratio of patches to total area
         total_area = np.sum(mask)
         fragmentation = num_patches / (total_area / 100)  # Normalize by 100 pixels
-        
+
         return min(fragmentation, 1.0)
-    
+
     def _create_zones_from_mask(
         self,
         mask: np.ndarray,
@@ -2243,7 +2243,7 @@ class VegetationAnalyzer:
     ) -> List[Dict]:
         """Create management zones from binary mask."""
         zones = []
-        
+
         # Convert mask to polygons
         for geom, value in shapes(mask.astype(np.uint8)):
             if value == 1:
@@ -2252,7 +2252,7 @@ class VegetationAnalyzer:
                     'priority': priority,
                     'area': shape(geom).area
                 })
-        
+
         return zones
 ```
 
@@ -2283,10 +2283,10 @@ logger = logging.getLogger(__name__)
 
 class SedimentationPredictor:
     """ML model for predicting sedimentation patterns."""
-    
+
     def __init__(self, model_type: str = 'ensemble'):
         """Initialize sedimentation predictor.
-        
+
         Args:
             model_type: Type of model ('rf', 'gbm', 'nn', 'ensemble')
         """
@@ -2295,7 +2295,7 @@ class SedimentationPredictor:
         self.scaler = StandardScaler()
         self.feature_names = None
         self.is_trained = False
-        
+
     def prepare_features(
         self,
         flow_data: pd.DataFrame,
@@ -2304,18 +2304,18 @@ class SedimentationPredictor:
         bathymetry: np.ndarray
     ) -> np.ndarray:
         """Prepare features for model training/prediction.
-        
+
         Args:
             flow_data: Flow velocity and depth data
             precipitation: Precipitation data
             land_use: Upstream land use data
             bathymetry: Bathymetric data
-            
+
         Returns:
             Feature array
         """
         features = []
-        
+
         # Flow features
         features.extend([
             flow_data['velocity'].mean(),
@@ -2325,7 +2325,7 @@ class SedimentationPredictor:
             flow_data['depth'].std(),
             flow_data['discharge'].mean() if 'discharge' in flow_data else 0
         ])
-        
+
         # Precipitation features
         features.extend([
             precipitation['daily'].sum(),
@@ -2333,12 +2333,12 @@ class SedimentationPredictor:
             precipitation['daily'].max(),
             precipitation['intensity'].mean() if 'intensity' in precipitation else 0
         ])
-        
+
         # Land use features
         land_use_percentages = land_use.groupby('type')['area'].sum() / land_use['area'].sum()
         for land_type in ['urban', 'agricultural', 'forest', 'wetland']:
             features.append(land_use_percentages.get(land_type, 0))
-        
+
         # Bathymetry features
         features.extend([
             np.mean(bathymetry),
@@ -2347,15 +2347,15 @@ class SedimentationPredictor:
             np.max(bathymetry),
             self._calculate_roughness(bathymetry)
         ])
-        
+
         # Temporal features
         features.extend([
             flow_data.index[0].month if hasattr(flow_data.index[0], 'month') else 6,
             flow_data.index[0].dayofyear if hasattr(flow_data.index[0], 'dayofyear') else 180
         ])
-        
+
         return np.array(features).reshape(1, -1)
-    
+
     def train(
         self,
         X: np.ndarray,
@@ -2363,12 +2363,12 @@ class SedimentationPredictor:
         validation_split: float = 0.2
     ) -> Dict:
         """Train the model.
-        
+
         Args:
             X: Feature array
             y: Target values (sedimentation rates)
             validation_split: Validation data fraction
-            
+
         Returns:
             Training metrics
         """
@@ -2376,11 +2376,11 @@ class SedimentationPredictor:
         X_train, X_val, y_train, y_val = train_test_split(
             X, y, test_size=validation_split, random_state=42
         )
-        
+
         # Scale features
         X_train_scaled = self.scaler.fit_transform(X_train)
         X_val_scaled = self.scaler.transform(X_val)
-        
+
         # Train model based on type
         if self.model_type == 'rf':
             self.model = self._train_random_forest(X_train_scaled, y_train)
@@ -2392,21 +2392,21 @@ class SedimentationPredictor:
             self.model = self._train_ensemble(X_train_scaled, y_train, X_val_scaled, y_val)
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
-        
+
         # Evaluate
         train_score = self.model.score(X_train_scaled, y_train) if hasattr(self.model, 'score') else 0
         val_score = self.model.score(X_val_scaled, y_val) if hasattr(self.model, 'score') else 0
-        
+
         # Calculate additional metrics
         from sklearn.metrics import mean_squared_error, mean_absolute_error
-        
+
         if self.model_type != 'nn':
             y_pred_train = self.model.predict(X_train_scaled)
             y_pred_val = self.model.predict(X_val_scaled)
         else:
             y_pred_train = self.model.predict(X_train_scaled).flatten()
             y_pred_val = self.model.predict(X_val_scaled).flatten()
-        
+
         metrics = {
             'train_r2': train_score,
             'val_r2': val_score,
@@ -2415,45 +2415,45 @@ class SedimentationPredictor:
             'train_mae': mean_absolute_error(y_train, y_pred_train),
             'val_mae': mean_absolute_error(y_val, y_pred_val)
         }
-        
+
         self.is_trained = True
-        
+
         return metrics
-    
+
     def predict(
         self,
         X: np.ndarray,
         return_uncertainty: bool = False
     ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         """Make predictions.
-        
+
         Args:
             X: Feature array
             return_uncertainty: Whether to return uncertainty estimates
-            
+
         Returns:
             Predictions and optionally uncertainty estimates
         """
         if not self.is_trained:
             raise ValueError("Model must be trained before prediction")
-        
+
         X_scaled = self.scaler.transform(X)
-        
+
         if self.model_type == 'ensemble' and return_uncertainty:
             # Get predictions from all models in ensemble
             predictions = []
             for model in self.model.estimators_ if hasattr(self.model, 'estimators_') else [self.model]:
                 pred = model.predict(X_scaled)
                 predictions.append(pred)
-            
+
             predictions = np.array(predictions)
             mean_pred = np.mean(predictions, axis=0)
             std_pred = np.std(predictions, axis=0)
-            
+
             return mean_pred, std_pred
         else:
             predictions = self.model.predict(X_scaled)
-            
+
             if return_uncertainty:
                 # Estimate uncertainty using dropout or ensemble variance
                 if self.model_type == 'nn':
@@ -2467,47 +2467,47 @@ class SedimentationPredictor:
                         return predictions, std
                     else:
                         return predictions, np.zeros_like(predictions)
-            
+
             return predictions
-    
+
     def save_model(self, path: Path):
         """Save trained model.
-        
+
         Args:
             path: Path to save model
         """
         if not self.is_trained:
             raise ValueError("Model must be trained before saving")
-        
+
         model_data = {
             'model': self.model,
             'scaler': self.scaler,
             'model_type': self.model_type,
             'feature_names': self.feature_names
         }
-        
+
         with open(path, 'wb') as f:
             pickle.dump(model_data, f)
-        
+
         logger.info(f"Model saved to {path}")
-    
+
     def load_model(self, path: Path):
         """Load trained model.
-        
+
         Args:
             path: Path to model file
         """
         with open(path, 'rb') as f:
             model_data = pickle.load(f)
-        
+
         self.model = model_data['model']
         self.scaler = model_data['scaler']
         self.model_type = model_data['model_type']
         self.feature_names = model_data.get('feature_names')
         self.is_trained = True
-        
+
         logger.info(f"Model loaded from {path}")
-    
+
     def _train_random_forest(
         self,
         X: np.ndarray,
@@ -2522,10 +2522,10 @@ class SedimentationPredictor:
             random_state=42,
             n_jobs=-1
         )
-        
+
         model.fit(X, y)
         return model
-    
+
     def _train_gradient_boosting(
         self,
         X: np.ndarray,
@@ -2540,10 +2540,10 @@ class SedimentationPredictor:
             min_samples_leaf=2,
             random_state=42
         )
-        
+
         model.fit(X, y)
         return model
-    
+
     def _train_neural_network(
         self,
         X_train: np.ndarray,
@@ -2560,19 +2560,19 @@ class SedimentationPredictor:
             layers.Dense(16, activation='relu'),
             layers.Dense(1)
         ])
-        
+
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=0.001),
             loss='mse',
             metrics=['mae']
         )
-        
+
         early_stopping = keras.callbacks.EarlyStopping(
             monitor='val_loss',
             patience=10,
             restore_best_weights=True
         )
-        
+
         model.fit(
             X_train, y_train,
             validation_data=(X_val, y_val),
@@ -2581,9 +2581,9 @@ class SedimentationPredictor:
             callbacks=[early_stopping],
             verbose=0
         )
-        
+
         return model
-    
+
     def _train_ensemble(
         self,
         X_train: np.ndarray,
@@ -2593,34 +2593,34 @@ class SedimentationPredictor:
     ) -> object:
         """Train ensemble model."""
         from sklearn.ensemble import VotingRegressor
-        
+
         rf = self._train_random_forest(X_train, y_train)
         gbm = self._train_gradient_boosting(X_train, y_train)
-        
+
         # Create ensemble
         ensemble = VotingRegressor([
             ('rf', rf),
             ('gbm', gbm)
         ])
-        
+
         ensemble.fit(X_train, y_train)
-        
+
         return ensemble
-    
+
     def _calculate_roughness(self, bathymetry: np.ndarray) -> float:
         """Calculate bathymetric roughness."""
         if bathymetry.size == 0:
             return 0.0
-        
+
         # Calculate standard deviation of gradients
         if len(bathymetry.shape) == 2:
             dy, dx = np.gradient(bathymetry)
             roughness = np.std(np.sqrt(dx**2 + dy**2))
         else:
             roughness = np.std(np.gradient(bathymetry))
-        
+
         return roughness
-    
+
     def _estimate_nn_uncertainty(
         self,
         X: np.ndarray,
@@ -2628,34 +2628,34 @@ class SedimentationPredictor:
     ) -> np.ndarray:
         """Estimate uncertainty for neural network predictions."""
         predictions = []
-        
+
         for _ in range(n_iterations):
             # Enable dropout during prediction
             pred = self.model(X, training=True)
             predictions.append(pred.numpy())
-        
+
         predictions = np.array(predictions)
         uncertainty = np.std(predictions, axis=0)
-        
+
         return uncertainty.flatten()
 
 
 class FlowPatternPredictor(nn.Module):
     """PyTorch model for flow pattern prediction."""
-    
+
     def __init__(self, input_size: int, hidden_sizes: List[int], output_size: int):
         """Initialize flow pattern predictor.
-        
+
         Args:
             input_size: Number of input features
             hidden_sizes: List of hidden layer sizes
             output_size: Number of output features
         """
         super(FlowPatternPredictor, self).__init__()
-        
+
         layers = []
         prev_size = input_size
-        
+
         for hidden_size in hidden_sizes:
             layers.extend([
                 nn.Linear(prev_size, hidden_size),
@@ -2664,15 +2664,15 @@ class FlowPatternPredictor(nn.Module):
                 nn.Dropout(0.2)
             ])
             prev_size = hidden_size
-        
+
         layers.append(nn.Linear(prev_size, output_size))
-        
+
         self.model = nn.Sequential(*layers)
-        
+
     def forward(self, x):
         """Forward pass."""
         return self.model(x)
-    
+
     def train_model(
         self,
         train_loader,
@@ -2681,13 +2681,13 @@ class FlowPatternPredictor(nn.Module):
         learning_rate: float = 0.001
     ) -> Dict:
         """Train the model.
-        
+
         Args:
             train_loader: Training data loader
             val_loader: Validation data loader
             epochs: Number of epochs
             learning_rate: Learning rate
-            
+
         Returns:
             Training history
         """
@@ -2696,14 +2696,14 @@ class FlowPatternPredictor(nn.Module):
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, patience=5, factor=0.5
         )
-        
+
         history = {'train_loss': [], 'val_loss': []}
-        
+
         for epoch in range(epochs):
             # Training
             self.train()
             train_loss = 0.0
-            
+
             for batch_x, batch_y in train_loader:
                 optimizer.zero_grad()
                 outputs = self(batch_x)
@@ -2711,29 +2711,29 @@ class FlowPatternPredictor(nn.Module):
                 loss.backward()
                 optimizer.step()
                 train_loss += loss.item()
-            
+
             train_loss /= len(train_loader)
-            
+
             # Validation
             self.eval()
             val_loss = 0.0
-            
+
             with torch.no_grad():
                 for batch_x, batch_y in val_loader:
                     outputs = self(batch_x)
                     loss = criterion(outputs, batch_y)
                     val_loss += loss.item()
-            
+
             val_loss /= len(val_loader)
-            
+
             scheduler.step(val_loss)
-            
+
             history['train_loss'].append(train_loss)
             history['val_loss'].append(val_loss)
-            
+
             if epoch % 10 == 0:
                 logger.info(f"Epoch {epoch}: Train Loss = {train_loss:.4f}, Val Loss = {val_loss:.4f}")
-        
+
         return history
 ```
 
@@ -2775,13 +2775,13 @@ def cli(ctx, config, verbose, debug):
         level=level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    
+
     # Load configuration
     if config:
         ctx.obj = Config.from_yaml(Path(config))
     else:
         ctx.obj = Config()
-    
+
     logger.info(f"HydroFlow v{__version__} initialized")
 
 
@@ -2802,26 +2802,26 @@ def analyze(ctx):
 def bathymetry(ctx, input_file, output, format, method, resolution):
     """Analyze bathymetric data."""
     click.echo(f"Processing bathymetric data from {input_file}")
-    
+
     try:
         analyzer = BathymetricAnalyzer(ctx.obj.dict())
-        
+
         # Load data
         import numpy as np
         data = np.loadtxt(input_file)
-        
+
         # Process multibeam sonar data
         metadata = {'source': 'multibeam', 'resolution': resolution}
         dataset = analyzer.process_multibeam_sonar(data, metadata)
-        
+
         # Create bathymetric surface
         surface = analyzer.create_bathymetric_surface(
             data[:, :3], method=method, resolution=resolution
         )
-        
+
         # Detect features
         features = analyzer.detect_channel_features(surface)
-        
+
         # Save results
         if output:
             if format == 'netcdf':
@@ -2829,13 +2829,13 @@ def bathymetry(ctx, input_file, output, format, method, resolution):
             elif format == 'json':
                 with open(output, 'w') as f:
                     json.dump(features, f, indent=2, default=str)
-            
+
             click.echo(f"Results saved to {output}")
         else:
             click.echo(json.dumps(features['metrics'], indent=2))
-        
+
         click.echo("Bathymetric analysis complete")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -2851,12 +2851,12 @@ def bathymetry(ctx, input_file, output, format, method, resolution):
 def sediment(ctx, flow_data, sediment_d50, sediment_density, time_horizon, output):
     """Analyze sediment transport patterns."""
     click.echo("Analyzing sediment transport...")
-    
+
     try:
         from hydroflow.analysis.sediment_transport import SedimentProperties
-        
+
         model = SedimentTransportModel(ctx.obj.dict())
-        
+
         # Set sediment properties
         props = SedimentProperties(
             d50=sediment_d50,
@@ -2864,35 +2864,35 @@ def sediment(ctx, flow_data, sediment_d50, sediment_density, time_horizon, outpu
             density=sediment_density
         )
         model.set_sediment_properties(props)
-        
+
         # Load flow data
         import pandas as pd
         flow_df = pd.read_csv(flow_data)
-        
+
         # Calculate transport
         velocity = flow_df['velocity'].values
         depth = flow_df['depth'].values
-        
+
         shear_stress = model.calculate_bed_shear_stress(velocity, depth)
         bedload = model.calculate_bedload_transport(shear_stress)
         suspended = model.calculate_suspended_load(velocity, depth)
-        
+
         results = {
             'mean_bedload': float(np.mean(bedload)),
             'max_bedload': float(np.max(bedload)),
             'mean_suspended': float(np.mean(suspended)),
             'total_transport': float(np.sum(bedload + suspended))
         }
-        
+
         if output:
             with open(output, 'w') as f:
                 json.dump(results, f, indent=2)
             click.echo(f"Results saved to {output}")
         else:
             click.echo(json.dumps(results, indent=2))
-        
+
         click.echo("Sediment analysis complete")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -2906,24 +2906,24 @@ def sediment(ctx, flow_data, sediment_d50, sediment_density, time_horizon, outpu
 def vegetation(ctx, imagery, species, output_dir):
     """Analyze vegetation patterns."""
     click.echo(f"Analyzing vegetation from {imagery}")
-    
+
     try:
         analyzer = VegetationAnalyzer(ctx.obj.dict())
-        
+
         # Analyze imagery
         results = analyzer.analyze_satellite_imagery(imagery)
-        
+
         # Detect specific species if requested
         if species:
             for sp in species:
                 click.echo(f"Detecting {sp}...")
                 # Detection logic here
-        
+
         # Save results
         if output_dir:
             output_path = Path(output_dir)
             output_path.mkdir(exist_ok=True)
-            
+
             # Save classification
             import rasterio
             with rasterio.open(
@@ -2937,17 +2937,17 @@ def vegetation(ctx, imagery, species, output_dir):
                 transform=results['transform']
             ) as dst:
                 dst.write(results['classification'], 1)
-            
+
             # Save metrics
             with open(output_path / 'metrics.json', 'w') as f:
                 json.dump(results['metrics'], f, indent=2)
-            
+
             click.echo(f"Results saved to {output_dir}")
         else:
             click.echo(json.dumps(results['metrics'], indent=2))
-        
+
         click.echo("Vegetation analysis complete")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -2967,12 +2967,12 @@ def monitor(ctx):
 def start(ctx, port, host):
     """Start real-time monitoring server."""
     click.echo(f"Starting monitoring server on {host}:{port}")
-    
+
     try:
         from hydroflow.monitoring.realtime import start_monitoring_server
-        
+
         start_monitoring_server(host, port, ctx.obj)
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -2985,14 +2985,14 @@ def start(ctx, port, host):
 def stream(ctx, sensor_id, duration):
     """Stream data from sensor."""
     click.echo(f"Streaming from sensor {sensor_id} for {duration} seconds")
-    
+
     try:
         monitor = RealtimeMonitor(ctx.obj.dict())
-        
+
         # Start streaming
         import asyncio
         asyncio.run(monitor.stream_sensor_data(sensor_id, duration))
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -3014,21 +3014,21 @@ def remediate(ctx):
 def dredging(ctx, bathymetry_file, target_depth, max_volume, output):
     """Generate dredging plan."""
     click.echo("Generating dredging plan...")
-    
+
     try:
         optimizer = DredgingOptimizer(ctx.obj.dict())
-        
+
         # Load bathymetry
         import numpy as np
         bathymetry = np.loadtxt(bathymetry_file)
-        
+
         # Generate plan
         plan = optimizer.optimize_dredging_plan(
             bathymetry,
             target_depth,
             max_volume
         )
-        
+
         # Calculate statistics
         stats = {
             'total_volume': plan['total_volume'],
@@ -3036,15 +3036,15 @@ def dredging(ctx, bathymetry_file, target_depth, max_volume, output):
             'duration_days': plan['duration_days'],
             'priority_areas': len(plan['priority_areas'])
         }
-        
+
         if output:
             with open(output, 'w') as f:
                 json.dump(plan, f, indent=2, default=str)
             click.echo(f"Plan saved to {output}")
-        
+
         click.echo(json.dumps(stats, indent=2))
         click.echo("Dredging plan complete")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -3059,21 +3059,21 @@ def dredging(ctx, bathymetry_file, target_depth, max_volume, output):
 def report(ctx, input, type, format, output):
     """Generate analysis report."""
     click.echo(f"Generating {format} report...")
-    
+
     try:
         from hydroflow.utils.reporting import ReportGenerator
-        
+
         generator = ReportGenerator(ctx.obj.dict())
-        
+
         # Load data
         with open(input, 'r') as f:
             data = json.load(f)
-        
+
         # Generate report
         generator.create_report(data, type, format, output)
-        
+
         click.echo(f"Report saved to {output}")
-        
+
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -3095,26 +3095,26 @@ def info(ctx):
     click.echo(f"HydroFlow Version: {__version__}")
     click.echo(f"Python Version: {sys.version}")
     click.echo(f"Configuration: {ctx.obj.environment}")
-    
+
     if click.confirm("Check system dependencies?"):
         try:
             import numpy
             click.echo(f"✓ NumPy: {numpy.__version__}")
         except ImportError:
             click.echo("✗ NumPy: Not installed")
-        
+
         try:
             import scipy
             click.echo(f"✓ SciPy: {scipy.__version__}")
         except ImportError:
             click.echo("✗ SciPy: Not installed")
-        
+
         try:
             import pandas
             click.echo(f"✓ Pandas: {pandas.__version__}")
         except ImportError:
             click.echo("✗ Pandas: Not installed")
-        
+
         try:
             import gdal
             click.echo(f"✓ GDAL: {gdal.__version__}")
@@ -3170,16 +3170,16 @@ def sample_bathymetry_data():
     x = np.linspace(0, 100, 50)
     y = np.linspace(0, 100, 50)
     xx, yy = np.meshgrid(x, y)
-    
+
     # Create channel-like bathymetry
     z = -5 - 3 * np.exp(-((xx - 50)**2 + (yy - 50)**2) / 500)
-    
+
     # Add some noise
     z += np.random.normal(0, 0.1, z.shape)
-    
+
     # Create point cloud
     points = np.column_stack([xx.ravel(), yy.ravel(), z.ravel()])
-    
+
     return {
         'grid': z,
         'points': points,
@@ -3192,7 +3192,7 @@ def sample_bathymetry_data():
 def sample_flow_data():
     """Generate sample flow data."""
     times = pd.date_range('2024-01-01', periods=100, freq='H')
-    
+
     data = pd.DataFrame({
         'time': times,
         'velocity': np.random.uniform(0.5, 2.0, 100),
@@ -3200,9 +3200,9 @@ def sample_flow_data():
         'discharge': np.random.uniform(10, 100, 100),
         'temperature': np.random.uniform(15, 25, 100)
     })
-    
+
     data.set_index('time', inplace=True)
-    
+
     return data
 
 
@@ -3221,22 +3221,22 @@ def sample_sediment_properties():
 def sample_multispectral_image():
     """Generate sample multispectral image."""
     height, width = 100, 100
-    
+
     # Create 4-band image (RGB + NIR)
     image = np.zeros((4, height, width))
-    
+
     # Add vegetation patch
     image[:, 30:50, 30:50] = [0.1, 0.3, 0.15, 0.7]  # Vegetation signature
-    
+
     # Add water area
     image[:, 60:80, 20:40] = [0.05, 0.08, 0.1, 0.02]  # Water signature
-    
+
     # Add bare soil
     image[:, 10:25, 60:75] = [0.3, 0.25, 0.2, 0.35]  # Soil signature
-    
+
     # Add noise
     image += np.random.normal(0, 0.01, image.shape)
-    
+
     return np.clip(image, 0, 1)
 
 
@@ -3266,7 +3266,7 @@ def mock_database():
     db.insert = MagicMock(return_value=True)
     db.update = MagicMock(return_value=True)
     db.delete = MagicMock(return_value=True)
-    
+
     return db
 
 
@@ -3277,7 +3277,7 @@ def mock_sensor():
     sensor.read = Mock(return_value=np.random.rand(10))
     sensor.status = Mock(return_value="active")
     sensor.calibrate = Mock(return_value=True)
-    
+
     return sensor
 
 
@@ -3286,10 +3286,10 @@ def sample_training_data():
     """Generate sample training data for ML models."""
     n_samples = 1000
     n_features = 20
-    
+
     X = np.random.randn(n_samples, n_features)
     y = np.sum(X[:, :5], axis=1) + np.random.randn(n_samples) * 0.1
-    
+
     return X, y
 ```
 
@@ -3307,78 +3307,78 @@ from hydroflow.analysis.bathymetric import BathymetricAnalyzer
 
 class TestBathymetricAnalyzer:
     """Test bathymetric analyzer."""
-    
+
     def test_process_multibeam_sonar(self, bathymetric_analyzer, sample_bathymetry_data):
         """Test multibeam sonar processing."""
         points = sample_bathymetry_data['points']
-        
+
         # Add intensity column
         intensity = np.random.rand(len(points))
         data = np.column_stack([points, intensity])
-        
+
         metadata = {
             'sound_velocity': 1500,
             'frequency': 200
         }
-        
+
         result = bathymetric_analyzer.process_multibeam_sonar(data, metadata)
-        
+
         assert isinstance(result, xr.Dataset)
         assert 'depth' in result.data_vars
         assert 'quality' in result.data_vars
         assert len(result.depth) == len(points)
-    
+
     def test_create_bathymetric_surface(self, bathymetric_analyzer, sample_bathymetry_data):
         """Test bathymetric surface creation."""
         points = sample_bathymetry_data['points']
-        
+
         for method in ['kriging', 'idw', 'spline', 'triangulation']:
             surface = bathymetric_analyzer.create_bathymetric_surface(
                 points,
                 method=method,
                 resolution=2.0
             )
-            
+
             assert isinstance(surface, np.ndarray)
             assert surface.ndim == 2
             assert not np.all(np.isnan(surface))
-    
+
     def test_detect_channel_features(self, bathymetric_analyzer, sample_bathymetry_data):
         """Test channel feature detection."""
         bathymetry = sample_bathymetry_data['grid']
-        
+
         features = bathymetric_analyzer.detect_channel_features(bathymetry)
-        
+
         assert 'thalweg' in features
         assert 'banks' in features
         assert 'pools' in features
         assert 'riffles' in features
         assert 'metrics' in features
-        
+
         metrics = features['metrics']
         assert 'mean_depth' in metrics
         assert 'max_depth' in metrics
         assert metrics['mean_depth'] < 0  # Depths are negative
-    
+
     def test_calculate_volume_change(self, bathymetric_analyzer):
         """Test volume change calculation."""
         surface1 = np.ones((50, 50)) * -5
         surface2 = np.ones((50, 50)) * -4
-        
+
         # Add some variation
         surface2[20:30, 20:30] = -6  # Erosion
         surface2[35:40, 35:40] = -3  # Deposition
-        
+
         result = bathymetric_analyzer.calculate_volume_change(
             surface1, surface2, cell_size=1.0
         )
-        
+
         assert 'total_deposition' in result
         assert 'total_erosion' in result
         assert 'net_change' in result
         assert result['total_deposition'] > 0
         assert result['total_erosion'] > 0
-    
+
     def test_interpolation_methods(self, bathymetric_analyzer):
         """Test different interpolation methods."""
         # Create simple test points
@@ -3393,49 +3393,49 @@ class TestBathymetricAnalyzer:
             [10, 10, -3],
             [5, 5, -6]
         ])
-        
+
         xx, yy = np.meshgrid(np.linspace(0, 10, 11), np.linspace(0, 10, 11))
-        
+
         # Test IDW interpolation
         result_idw = bathymetric_analyzer._idw_interpolation(points, xx, yy)
         assert result_idw.shape == xx.shape
         assert not np.all(np.isnan(result_idw))
-        
+
         # Test spline interpolation
         result_spline = bathymetric_analyzer._spline_interpolation(points, xx, yy)
         assert result_spline.shape == xx.shape
-        
+
         # Test triangulation
         result_tri = bathymetric_analyzer._triangulation_interpolation(points, xx, yy)
         assert result_tri.shape == xx.shape
-    
+
     def test_outlier_filtering(self, bathymetric_analyzer):
         """Test outlier filtering methods."""
         data = np.array([1, 2, 3, 4, 5, 100, 6, 7, 8, 9])  # 100 is outlier
-        
+
         # Test IQR method
         filtered_iqr = bathymetric_analyzer._filter_outliers(data, method='iqr')
         assert np.isnan(filtered_iqr[5])  # Outlier should be NaN
         assert not np.isnan(filtered_iqr[0])
-        
+
         # Test z-score method
         filtered_zscore = bathymetric_analyzer._filter_outliers(
             data, method='zscore', threshold=2.0
         )
         assert np.isnan(filtered_zscore[5])
-    
+
     def test_slope_aspect_calculation(self, bathymetric_analyzer, sample_bathymetry_data):
         """Test slope and aspect calculation."""
         grid = sample_bathymetry_data['grid']
-        
+
         slope = bathymetric_analyzer._calculate_slope(grid)
         aspect = bathymetric_analyzer._calculate_aspect(grid)
         curvature = bathymetric_analyzer._calculate_curvature(grid)
-        
+
         assert slope.shape == grid.shape
         assert aspect.shape == grid.shape
         assert curvature.shape == grid.shape
-        
+
         assert np.all(slope >= 0)  # Slope should be positive
         assert np.all((aspect >= -180) & (aspect <= 180))  # Aspect in degrees
 ```
@@ -3457,112 +3457,112 @@ from hydroflow.analysis.sediment_transport import (
 
 class TestSedimentTransport:
     """Test sediment transport model."""
-    
+
     def test_sediment_properties(self):
         """Test sediment properties calculation."""
         props = SedimentProperties(d50=0.5, d90=1.0)
-        
+
         assert props.d50 == 0.5
         assert props.d90 == 1.0
         assert props.density == 2650
         assert props.settling_velocity > 0
-        
+
         # Test settling velocity calculation
         ws = props.calculate_settling_velocity()
         assert ws > 0
         assert ws < 1.0  # Reasonable range for 0.5mm sand
-    
+
     def test_bed_shear_stress(self, sediment_model):
         """Test bed shear stress calculation."""
         velocity = np.array([1.0, 1.5, 2.0])
         depth = np.array([2.0, 3.0, 4.0])
-        
+
         tau = sediment_model.calculate_bed_shear_stress(velocity, depth)
-        
+
         assert len(tau) == len(velocity)
         assert np.all(tau > 0)
         assert tau[2] > tau[0]  # Higher velocity = higher stress
-    
+
     def test_shields_parameter(self, sediment_model, sample_sediment_properties):
         """Test Shields parameter calculation."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         shear_stress = np.array([1.0, 2.0, 3.0])
         theta = sediment_model.calculate_shields_parameter(shear_stress)
-        
+
         assert len(theta) == len(shear_stress)
         assert np.all(theta > 0)
         assert theta[2] > theta[0]
-    
+
     def test_critical_shear_stress(self, sediment_model, sample_sediment_properties):
         """Test critical shear stress calculation."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         tau_cr = sediment_model.calculate_critical_shear_stress()
-        
+
         assert tau_cr > 0
         assert tau_cr < 10  # Reasonable range for sand
-    
+
     def test_bedload_transport_methods(self, sediment_model, sample_sediment_properties):
         """Test different bedload transport formulas."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         shear_stress = np.array([0.5, 1.0, 2.0, 3.0])
-        
+
         # Test Meyer-Peter-Müller
         qb_mpm = sediment_model.calculate_bedload_transport(
             shear_stress, method='meyer-peter'
         )
         assert len(qb_mpm) == len(shear_stress)
         assert np.all(qb_mpm >= 0)
-        
+
         # Test Van Rijn
         qb_vr = sediment_model.calculate_bedload_transport(
             shear_stress, method='vanrijn'
         )
         assert len(qb_vr) == len(shear_stress)
         assert np.all(qb_vr >= 0)
-    
+
     def test_suspended_load(self, sediment_model, sample_sediment_properties):
         """Test suspended load calculation."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         velocity = np.array([1.0, 1.5, 2.0])
         depth = np.array([2.0, 3.0, 4.0])
-        
+
         qs = sediment_model.calculate_suspended_load(velocity, depth)
-        
+
         assert len(qs) == len(velocity)
         assert np.all(qs >= 0)
-    
+
     def test_exner_equation(self, sediment_model, sample_sediment_properties):
         """Test Exner equation solver."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         # Set flow field
         velocity = np.ones((10, 10)) * 1.5
         depth = np.ones((10, 10)) * 3.0
         sediment_model.set_flow_field(velocity, depth)
-        
+
         # Initial bed
         initial_bed = np.ones((10, 10)) * -5.0
-        
+
         # Solve
         result = sediment_model.solve_exner_equation(
             initial_bed,
             time_span=(0, 100),
             dt=10
         )
-        
+
         assert 'bed_elevation' in result.data_vars
         assert 'bed_change_rate' in result.data_vars
         assert len(result.time) == 10
-    
+
     def test_deposition_prediction(self, sediment_model, sample_sediment_properties):
         """Test deposition pattern prediction."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
         sediment_model.bathymetry = np.ones((10, 10)) * -5.0
-        
+
         # Define flow scenarios
         scenarios = [
             {
@@ -3578,26 +3578,26 @@ class TestSedimentTransport:
                 'duration': 86400 * 10  # 10 days
             }
         ]
-        
+
         deposition = sediment_model.predict_deposition_patterns(scenarios)
-        
+
         assert deposition.shape == (10, 10)
         assert not np.all(deposition == 0)
-    
+
     def test_model_calibration(self, sediment_model, sample_sediment_properties):
         """Test model calibration."""
         sediment_model.set_sediment_properties(sample_sediment_properties)
-        
+
         # Create synthetic data
         shear_stress = np.array([1.0, 1.5, 2.0, 2.5, 3.0])
         observed_transport = np.array([0.001, 0.003, 0.008, 0.015, 0.025])
-        
+
         measured_conditions = {
             'shear_stress': shear_stress
         }
-        
+
         params = sediment_model.calibrate_model(observed_transport, measured_conditions)
-        
+
         assert 'roughness' in params
         assert 'transport_coefficient' in params
         assert 'rmse' in params
@@ -3618,85 +3618,85 @@ from hydroflow.analysis.vegetation import VegetationAnalyzer
 
 class TestVegetationAnalyzer:
     """Test vegetation analyzer."""
-    
+
     def test_vegetation_indices(self, vegetation_analyzer, sample_multispectral_image):
         """Test vegetation index calculation."""
         bands = ['red', 'green', 'blue', 'nir']
-        
+
         indices = vegetation_analyzer._calculate_vegetation_indices(
             sample_multispectral_image, bands
         )
-        
+
         assert 'ndvi' in indices
         assert 'evi' in indices
         assert 'savi' in indices
-        
+
         # Check NDVI range
         ndvi = indices['ndvi']
         assert np.all((ndvi >= -1) & (ndvi <= 1))
-    
+
     def test_vegetation_classification(self, vegetation_analyzer, sample_multispectral_image):
         """Test vegetation classification."""
         bands = ['red', 'green', 'blue', 'nir']
         indices = vegetation_analyzer._calculate_vegetation_indices(
             sample_multispectral_image, bands
         )
-        
+
         classification = vegetation_analyzer._classify_vegetation(
             sample_multispectral_image, indices
         )
-        
+
         assert classification.shape == sample_multispectral_image.shape[1:]
         assert np.all((classification >= 0) & (classification <= 4))
-    
+
     def test_aquatic_vegetation_detection(self, vegetation_analyzer, sample_multispectral_image):
         """Test aquatic vegetation detection."""
         water_mask = np.zeros(sample_multispectral_image.shape[1:], dtype=bool)
         water_mask[60:80, 20:40] = True
-        
+
         result = vegetation_analyzer.detect_aquatic_vegetation(
             sample_multispectral_image, water_mask
         )
-        
+
         assert 'submerged' in result
         assert 'floating' in result
         assert 'emergent' in result
         assert 'biomass' in result
         assert 'total_coverage' in result
-        
+
         assert result['total_coverage'] >= 0
         assert result['total_coverage'] <= 1
-    
+
     def test_invasive_species_identification(self, vegetation_analyzer, sample_multispectral_image):
         """Test invasive species identification."""
         # Create synthetic spectral signatures
         signatures = {
             'test_species': np.array([0.1, 0.3, 0.15, 0.7])
         }
-        
+
         result = vegetation_analyzer.identify_invasive_species(
             sample_multispectral_image, signatures
         )
-        
+
         if 'test_species' in result:
             assert 'mask' in result['test_species']
             assert 'area' in result['test_species']
             assert 'confidence' in result['test_species']
             assert result['test_species']['confidence'] <= 1.0
-    
+
     def test_removal_priority_calculation(self, vegetation_analyzer):
         """Test vegetation removal priority calculation."""
         vegetation_map = np.random.rand(50, 50)
         flow_impact = np.random.rand(50, 50)
         ecological_value = np.random.rand(50, 50)
-        
+
         priority = vegetation_analyzer.calculate_removal_priority(
             vegetation_map, flow_impact, ecological_value
         )
-        
+
         assert priority.shape == vegetation_map.shape
         assert np.all((priority >= 0) & (priority <= 1))
-    
+
     def test_removal_timing_optimization(self, vegetation_analyzer):
         """Test removal timing optimization."""
         species_data = {
@@ -3707,22 +3707,22 @@ class TestVegetationAnalyzer:
                 'effort': 'medium'
             }
         }
-        
+
         environmental_conditions = pd.DataFrame({
             'month': range(1, 13),
             'water_level': np.random.uniform(1, 3, 12),
             'precipitation': np.random.uniform(20, 100, 12)
         })
-        
+
         schedule = vegetation_analyzer.optimize_removal_timing(
             species_data, environmental_conditions
         )
-        
+
         assert isinstance(schedule, pd.DataFrame)
         assert 'species' in schedule.columns
         assert 'optimal_months' in schedule.columns
         assert len(schedule) == 1
-    
+
     def test_regrowth_estimation(self, vegetation_analyzer):
         """Test regrowth potential estimation."""
         environmental_factors = {
@@ -3730,42 +3730,42 @@ class TestVegetationAnalyzer:
             'nutrients': 1.2,
             'light': 0.9
         }
-        
+
         result = vegetation_analyzer.estimate_regrowth_potential(
             'water_hyacinth', 'mechanical', environmental_factors
         )
-        
+
         assert 'regrowth_rate' in result
         assert 'time_to_regrowth_days' in result
         assert 'probability_of_regrowth' in result
         assert 'recommended_monitoring_frequency' in result
-        
+
         assert result['regrowth_rate'] >= 0
         assert result['probability_of_regrowth'] <= 1.0
-    
+
     def test_spectral_similarity(self, vegetation_analyzer):
         """Test spectral similarity calculation."""
         data = np.random.rand(4, 10, 10)
         signature = np.array([0.2, 0.3, 0.25, 0.6])
-        
+
         similarity = vegetation_analyzer._spectral_similarity(data, signature)
-        
+
         assert similarity.shape == (10, 10)
         assert np.all((similarity >= 0) & (similarity <= 1))
-    
+
     def test_biomass_estimation(self, vegetation_analyzer):
         """Test biomass estimation."""
         submerged = np.random.rand(50, 50) > 0.8
         floating = np.random.rand(50, 50) > 0.9
         emergent = np.random.rand(50, 50) > 0.85
-        
+
         biomass = vegetation_analyzer._estimate_biomass(submerged, floating, emergent)
-        
+
         assert 'total' in biomass
         assert 'submerged' in biomass
         assert 'floating' in biomass
         assert 'emergent' in biomass
-        
+
         assert biomass['total'] >= 0
         assert biomass['total'] == sum([
             biomass['submerged'],
@@ -3789,134 +3789,134 @@ from hydroflow.ml.models import SedimentationPredictor, FlowPatternPredictor
 
 class TestSedimentationPredictor:
     """Test sedimentation predictor."""
-    
+
     def test_feature_preparation(self):
         """Test feature preparation."""
         predictor = SedimentationPredictor()
-        
+
         # Create sample data
         flow_data = pd.DataFrame({
             'velocity': np.random.uniform(0.5, 2.0, 100),
             'depth': np.random.uniform(1.0, 5.0, 100),
             'discharge': np.random.uniform(10, 100, 100)
         })
-        
+
         precipitation = pd.DataFrame({
             'daily': np.random.uniform(0, 50, 30),
             'intensity': np.random.uniform(0, 10, 30)
         })
-        
+
         land_use = pd.DataFrame({
             'type': ['urban', 'agricultural', 'forest'],
             'area': [100, 200, 300]
         })
-        
+
         bathymetry = np.random.randn(50, 50) * 2 - 5
-        
+
         features = predictor.prepare_features(
             flow_data, precipitation, land_use, bathymetry
         )
-        
+
         assert features.shape[0] == 1
         assert features.shape[1] > 10  # Should have multiple features
         assert not np.any(np.isnan(features))
-    
+
     def test_model_training(self, sample_training_data):
         """Test model training."""
         X, y = sample_training_data
-        
+
         for model_type in ['rf', 'gbm']:
             predictor = SedimentationPredictor(model_type=model_type)
-            
+
             metrics = predictor.train(X, y, validation_split=0.2)
-            
+
             assert 'train_r2' in metrics
             assert 'val_r2' in metrics
             assert 'train_rmse' in metrics
             assert 'val_rmse' in metrics
-            
+
             assert predictor.is_trained
             assert metrics['train_rmse'] >= 0
-    
+
     def test_prediction(self, sample_training_data):
         """Test model prediction."""
         X, y = sample_training_data
-        
+
         predictor = SedimentationPredictor(model_type='rf')
         predictor.train(X, y)
-        
+
         # Single prediction
         X_test = X[:10]
         predictions = predictor.predict(X_test)
-        
+
         assert len(predictions) == 10
         assert not np.any(np.isnan(predictions))
-        
+
         # Prediction with uncertainty
         predictions, uncertainty = predictor.predict(X_test, return_uncertainty=True)
-        
+
         assert len(predictions) == len(uncertainty)
         assert np.all(uncertainty >= 0)
-    
+
     def test_model_persistence(self, sample_training_data, temp_dir):
         """Test model saving and loading."""
         X, y = sample_training_data
-        
+
         predictor = SedimentationPredictor(model_type='rf')
         predictor.train(X, y)
-        
+
         # Save model
         model_path = temp_dir / 'test_model.pkl'
         predictor.save_model(model_path)
-        
+
         assert model_path.exists()
-        
+
         # Load model
         new_predictor = SedimentationPredictor()
         new_predictor.load_model(model_path)
-        
+
         assert new_predictor.is_trained
         assert new_predictor.model_type == 'rf'
-        
+
         # Test predictions are same
         predictions1 = predictor.predict(X[:5])
         predictions2 = new_predictor.predict(X[:5])
-        
+
         np.testing.assert_array_almost_equal(predictions1, predictions2)
-    
+
     @pytest.mark.skipif(not torch_available(), reason="PyTorch not installed")
     def test_flow_pattern_predictor(self):
         """Test flow pattern predictor."""
         import torch
         from torch.utils.data import DataLoader, TensorDataset
-        
+
         # Create model
         model = FlowPatternPredictor(
             input_size=10,
             hidden_sizes=[32, 16],
             output_size=5
         )
-        
+
         # Create sample data
         X = torch.randn(100, 10)
         y = torch.randn(100, 5)
-        
+
         train_dataset = TensorDataset(X[:80], y[:80])
         val_dataset = TensorDataset(X[80:], y[80:])
-        
+
         train_loader = DataLoader(train_dataset, batch_size=16)
         val_loader = DataLoader(val_dataset, batch_size=16)
-        
+
         # Train model
         history = model.train_model(
             train_loader, val_loader,
             epochs=10, learning_rate=0.001
         )
-        
+
         assert 'train_loss' in history
         assert 'val_loss' in history
         assert len(history['train_loss']) == 10
-        
+
         # Test forward pass
         model.eval()
         with torch.no_grad():
@@ -3957,14 +3957,14 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SensorReading:
     """Sensor reading data."""
-    
+
     sensor_id: str
     timestamp: datetime
     value: float
     unit: str
     quality: float = 1.0
     metadata: Optional[Dict] = None
-    
+
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
         data = asdict(self)
@@ -3974,10 +3974,10 @@ class SensorReading:
 
 class RealtimeMonitor:
     """Real-time monitoring system."""
-    
+
     def __init__(self, config: Dict):
         """Initialize real-time monitor.
-        
+
         Args:
             config: Configuration dictionary
         """
@@ -3987,7 +3987,7 @@ class RealtimeMonitor:
         self.data_buffer = {}
         self.callbacks = {}
         self.websocket_clients = set()
-        
+
     async def connect_sensor(
         self,
         sensor_id: str,
@@ -3995,7 +3995,7 @@ class RealtimeMonitor:
         connection_params: Dict
     ):
         """Connect to a sensor.
-        
+
         Args:
             sensor_id: Unique sensor identifier
             sensor_type: Type of sensor
@@ -4010,101 +4010,101 @@ class RealtimeMonitor:
                 sensor = await self._connect_http_sensor(connection_params)
             else:
                 raise ValueError(f"Unknown sensor type: {sensor_type}")
-            
+
             self.sensors[sensor_id] = {
                 'type': sensor_type,
                 'connection': sensor,
                 'status': 'connected',
                 'last_reading': None
             }
-            
+
             logger.info(f"Connected to sensor {sensor_id}")
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to sensor {sensor_id}: {e}")
             raise MonitoringError(f"Sensor connection failed: {e}")
-    
+
     async def stream_sensor_data(
         self,
         sensor_id: str,
         duration: Optional[int] = None
     ):
         """Stream data from sensor.
-        
+
         Args:
             sensor_id: Sensor to stream from
             duration: Duration in seconds (None for continuous)
         """
         if sensor_id not in self.sensors:
             raise ValueError(f"Sensor {sensor_id} not connected")
-        
+
         start_time = datetime.now()
-        
+
         while True:
             try:
                 # Read sensor data
                 reading = await self._read_sensor(sensor_id)
-                
+
                 # Store in buffer
                 if sensor_id not in self.data_buffer:
                     self.data_buffer[sensor_id] = []
-                
+
                 self.data_buffer[sensor_id].append(reading)
-                
+
                 # Limit buffer size
                 if len(self.data_buffer[sensor_id]) > 1000:
                     self.data_buffer[sensor_id] = self.data_buffer[sensor_id][-1000:]
-                
+
                 # Process reading
                 await self._process_reading(reading)
-                
+
                 # Broadcast to websocket clients
                 await self._broadcast_reading(reading)
-                
+
                 # Check duration
                 if duration and (datetime.now() - start_time).seconds >= duration:
                     break
-                
+
                 # Wait for next reading
                 await asyncio.sleep(self.config.get('sampling_interval', 1.0))
-                
+
             except Exception as e:
                 logger.error(f"Error streaming from {sensor_id}: {e}")
                 await asyncio.sleep(5)  # Wait before retry
-    
+
     async def detect_anomalies(
         self,
         sensor_id: str,
         window_size: int = 100
     ) -> List[Dict]:
         """Detect anomalies in sensor data.
-        
+
         Args:
             sensor_id: Sensor to analyze
             window_size: Analysis window size
-            
+
         Returns:
             List of detected anomalies
         """
         if sensor_id not in self.data_buffer:
             return []
-        
+
         data = self.data_buffer[sensor_id][-window_size:]
-        
+
         if len(data) < window_size:
             return []
-        
+
         values = np.array([r.value for r in data])
-        
+
         anomalies = []
-        
+
         # Statistical anomaly detection
         mean = np.mean(values)
         std = np.std(values)
-        
+
         for i, reading in enumerate(data):
             z_score = abs((reading.value - mean) / std) if std > 0 else 0
-            
+
             if z_score > 3:  # 3-sigma rule
                 anomalies.append({
                     'timestamp': reading.timestamp,
@@ -4112,20 +4112,20 @@ class RealtimeMonitor:
                     'z_score': z_score,
                     'type': 'statistical'
                 })
-        
+
         # Trend anomaly detection
         if len(values) >= 10:
             trend = np.polyfit(range(len(values)), values, 1)[0]
-            
+
             if abs(trend) > std * 0.5:  # Significant trend
                 anomalies.append({
                     'timestamp': data[-1].timestamp,
                     'trend': trend,
                     'type': 'trend'
                 })
-        
+
         return anomalies
-    
+
     async def trigger_alert(
         self,
         alert_type: str,
@@ -4134,7 +4134,7 @@ class RealtimeMonitor:
         data: Optional[Dict] = None
     ):
         """Trigger an alert.
-        
+
         Args:
             alert_type: Type of alert
             severity: Alert severity (info, warning, critical)
@@ -4150,72 +4150,72 @@ class RealtimeMonitor:
             'data': data or {},
             'acknowledged': False
         }
-        
+
         self.alerts.append(alert)
-        
+
         # Execute alert callbacks
         if alert_type in self.callbacks:
             for callback in self.callbacks[alert_type]:
                 await callback(alert)
-        
+
         # Send notifications based on severity
         if severity == 'critical':
             await self._send_critical_notification(alert)
         elif severity == 'warning':
             await self._send_warning_notification(alert)
-        
+
         logger.info(f"Alert triggered: {alert_type} - {message}")
-    
+
     def register_callback(
         self,
         event_type: str,
         callback: Callable
     ):
         """Register callback for event type.
-        
+
         Args:
             event_type: Type of event
             callback: Callback function
         """
         if event_type not in self.callbacks:
             self.callbacks[event_type] = []
-        
+
         self.callbacks[event_type].append(callback)
-    
+
     async def calculate_flow_statistics(
         self,
         sensor_ids: List[str],
         time_window: timedelta = timedelta(hours=1)
     ) -> Dict:
         """Calculate flow statistics from multiple sensors.
-        
+
         Args:
             sensor_ids: List of sensor IDs
             time_window: Time window for analysis
-            
+
         Returns:
             Flow statistics
         """
         end_time = datetime.now()
         start_time = end_time - time_window
-        
+
         stats = {}
-        
+
         for sensor_id in sensor_ids:
             if sensor_id not in self.data_buffer:
                 continue
-            
+
             # Filter data within time window
             data = [
                 r for r in self.data_buffer[sensor_id]
                 if r.timestamp >= start_time
             ]
-            
+
             if not data:
                 continue
-            
+
             values = [r.value for r in data]
-            
+
             stats[sensor_id] = {
                 'mean': np.mean(values),
                 'std': np.std(values),
@@ -4225,33 +4225,33 @@ class RealtimeMonitor:
                 'last_value': values[-1],
                 'trend': self._calculate_trend(values)
             }
-        
+
         # Calculate aggregate statistics
         if stats:
             all_values = []
             for sensor_stats in stats.values():
                 all_values.extend([sensor_stats['last_value']])
-            
+
             stats['aggregate'] = {
                 'mean': np.mean(all_values),
                 'std': np.std(all_values),
                 'sensor_count': len(stats)
             }
-        
+
         return stats
-    
+
     async def _connect_modbus_sensor(self, params: Dict):
         """Connect to Modbus sensor."""
         # Placeholder for Modbus connection
         # In practice, would use pymodbus or similar
         return {'type': 'modbus', 'params': params}
-    
+
     async def _connect_mqtt_sensor(self, params: Dict):
         """Connect to MQTT sensor."""
         # Placeholder for MQTT connection
         # In practice, would use paho-mqtt or similar
         return {'type': 'mqtt', 'params': params}
-    
+
     async def _connect_http_sensor(self, params: Dict):
         """Connect to HTTP sensor."""
         async with aiohttp.ClientSession() as session:
@@ -4260,15 +4260,15 @@ class RealtimeMonitor:
                     return {'type': 'http', 'params': params}
                 else:
                     raise ConnectionError(f"HTTP sensor returned {response.status}")
-    
+
     async def _read_sensor(self, sensor_id: str) -> SensorReading:
         """Read data from sensor."""
         sensor = self.sensors[sensor_id]
-        
+
         # Simulated reading for demo
         # In practice, would read actual sensor data
         value = np.random.normal(10, 2)
-        
+
         reading = SensorReading(
             sensor_id=sensor_id,
             timestamp=datetime.now(),
@@ -4276,19 +4276,19 @@ class RealtimeMonitor:
             unit='m/s',
             quality=0.95
         )
-        
+
         sensor['last_reading'] = reading
-        
+
         return reading
-    
+
     async def _process_reading(self, reading: SensorReading):
         """Process sensor reading."""
         # Check for threshold violations
         thresholds = self.config.get('thresholds', {})
-        
+
         if reading.sensor_id in thresholds:
             threshold = thresholds[reading.sensor_id]
-            
+
             if reading.value > threshold.get('max', float('inf')):
                 await self.trigger_alert(
                     'threshold_exceeded',
@@ -4296,7 +4296,7 @@ class RealtimeMonitor:
                     f"Sensor {reading.sensor_id} exceeded maximum threshold",
                     {'value': reading.value, 'threshold': threshold['max']}
                 )
-            
+
             if reading.value < threshold.get('min', float('-inf')):
                 await self.trigger_alert(
                     'threshold_violated',
@@ -4304,85 +4304,85 @@ class RealtimeMonitor:
                     f"Sensor {reading.sensor_id} below minimum threshold",
                     {'value': reading.value, 'threshold': threshold['min']}
                 )
-    
+
     async def _broadcast_reading(self, reading: SensorReading):
         """Broadcast reading to websocket clients."""
         if not self.websocket_clients:
             return
-        
+
         message = json.dumps(reading.to_dict())
-        
+
         # Send to all connected clients
         disconnected = set()
-        
+
         for client in self.websocket_clients:
             try:
                 await client.send(message)
             except websockets.exceptions.ConnectionClosed:
                 disconnected.add(client)
-        
+
         # Remove disconnected clients
         self.websocket_clients -= disconnected
-    
+
     async def _send_critical_notification(self, alert: Dict):
         """Send critical alert notification."""
         # Implement email, SMS, or other notification methods
         logger.critical(f"CRITICAL ALERT: {alert['message']}")
-    
+
     async def _send_warning_notification(self, alert: Dict):
         """Send warning notification."""
         logger.warning(f"WARNING: {alert['message']}")
-    
+
     def _calculate_trend(self, values: List[float]) -> float:
         """Calculate trend in values."""
         if len(values) < 2:
             return 0.0
-        
+
         x = np.arange(len(values))
         trend = np.polyfit(x, values, 1)[0]
-        
+
         return trend
 
 
 async def start_monitoring_server(host: str, port: int, config: Dict):
     """Start monitoring WebSocket server.
-    
+
     Args:
         host: Server host
         port: Server port
         config: Configuration
     """
     monitor = RealtimeMonitor(config)
-    
+
     async def handle_client(websocket, path):
         """Handle WebSocket client connections."""
         monitor.websocket_clients.add(websocket)
-        
+
         try:
             async for message in websocket:
                 # Handle client messages
                 data = json.loads(message)
-                
+
                 if data['type'] == 'subscribe':
                     sensor_id = data['sensor_id']
                     asyncio.create_task(
                         monitor.stream_sensor_data(sensor_id)
                     )
-                
+
                 elif data['type'] == 'command':
                     # Handle commands
                     pass
-        
+
         except websockets.exceptions.ConnectionClosed:
             pass
-        
+
         finally:
             monitor.websocket_clients.remove(websocket)
-    
+
     server = await websockets.serve(handle_client, host, port)
-    
+
     logger.info(f"Monitoring server started on {host}:{port}")
-    
+
     await server.wait_closed()
 ```
 
@@ -4406,7 +4406,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DredgingArea:
     """Dredging area specification."""
-    
+
     id: str
     location: Tuple[float, float]
     volume: float
@@ -4414,12 +4414,12 @@ class DredgingArea:
     depth_deficit: float
     sediment_type: str
     environmental_constraints: List[str]
-    
+
     @property
     def cost_estimate(self) -> float:
         """Estimate dredging cost."""
         base_cost = 15.0  # $/m³
-        
+
         # Adjust for sediment type
         sediment_factors = {
             'sand': 1.0,
@@ -4428,31 +4428,31 @@ class DredgingArea:
             'rock': 3.0,
             'contaminated': 5.0
         }
-        
+
         cost = base_cost * sediment_factors.get(self.sediment_type, 1.0)
-        
+
         # Add environmental compliance costs
         if 'protected_species' in self.environmental_constraints:
             cost *= 1.5
         if 'spawning_season' in self.environmental_constraints:
             cost *= 1.3
-        
+
         return cost * self.volume
 
 
 class DredgingOptimizer:
     """Optimize dredging operations."""
-    
+
     def __init__(self, config: Dict):
         """Initialize dredging optimizer.
-        
+
         Args:
             config: Configuration dictionary
         """
         self.config = config
         self.areas = []
         self.equipment = []
-        
+
     def optimize_dredging_plan(
         self,
         bathymetry: np.ndarray,
@@ -4461,45 +4461,45 @@ class DredgingOptimizer:
         constraints: Optional[Dict] = None
     ) -> Dict:
         """Generate optimized dredging plan.
-        
+
         Args:
             bathymetry: Current bathymetry
             target_depth: Target channel depth
             max_volume: Maximum dredging volume
             constraints: Environmental and operational constraints
-            
+
         Returns:
             Optimized dredging plan
         """
         # Identify areas requiring dredging
         areas = self._identify_dredging_areas(bathymetry, target_depth)
-        
+
         # Apply constraints
         if constraints:
             areas = self._apply_constraints(areas, constraints)
-        
+
         # Optimize dredging sequence
         sequence = self._optimize_sequence(areas)
-        
+
         # Allocate equipment
         equipment_allocation = self._allocate_equipment(sequence)
-        
+
         # Calculate volumes and costs
         total_volume = sum(area.volume for area in sequence)
-        
+
         if max_volume and total_volume > max_volume:
             sequence = self._prioritize_areas(sequence, max_volume)
             total_volume = max_volume
-        
+
         # Generate work orders
         work_orders = self._generate_work_orders(sequence, equipment_allocation)
-        
+
         # Environmental impact assessment
         environmental_impact = self._assess_environmental_impact(sequence)
-        
+
         # Calculate timeline
         timeline = self._calculate_timeline(sequence, equipment_allocation)
-        
+
         plan = {
             'areas': [self._area_to_dict(area) for area in sequence],
             'total_volume': total_volume,
@@ -4511,9 +4511,9 @@ class DredgingOptimizer:
             'environmental_impact': environmental_impact,
             'timeline': timeline
         }
-        
+
         return plan
-    
+
     def calculate_dredging_volume(
         self,
         current_depth: np.ndarray,
@@ -4521,30 +4521,30 @@ class DredgingOptimizer:
         cell_size: float = 1.0
     ) -> Dict:
         """Calculate required dredging volume.
-        
+
         Args:
             current_depth: Current depth grid
             target_depth: Target depth
             cell_size: Grid cell size
-            
+
         Returns:
             Volume calculations
         """
         # Calculate depth deficit
         deficit = target_depth - current_depth
         deficit = np.maximum(deficit, 0)  # Only where dredging needed
-        
+
         # Calculate volumes
         cell_area = cell_size ** 2
         volume_grid = deficit * cell_area
-        
+
         total_volume = np.sum(volume_grid)
-        
+
         # Categorize by depth
         shallow_volume = np.sum(volume_grid[deficit < 1.0])
         moderate_volume = np.sum(volume_grid[(deficit >= 1.0) & (deficit < 2.0)])
         deep_volume = np.sum(volume_grid[deficit >= 2.0])
-        
+
         return {
             'total_volume': total_volume,
             'shallow_volume': shallow_volume,
@@ -4554,7 +4554,7 @@ class DredgingOptimizer:
             'max_depth_deficit': np.max(deficit),
             'mean_depth_deficit': np.mean(deficit[deficit > 0]) if np.any(deficit > 0) else 0
         }
-    
+
     def optimize_disposal_sites(
         self,
         dredged_volume: float,
@@ -4562,17 +4562,17 @@ class DredgingOptimizer:
         transport_costs: np.ndarray
     ) -> Dict:
         """Optimize disposal site selection.
-        
+
         Args:
             dredged_volume: Volume to dispose
             potential_sites: List of potential disposal sites
             transport_costs: Transport cost matrix
-            
+
         Returns:
             Optimal disposal plan
         """
         n_sites = len(potential_sites)
-        
+
         # Formulate as optimization problem
         def objective(x):
             # Minimize total cost (transport + disposal)
@@ -4582,25 +4582,25 @@ class DredgingOptimizer:
                 for i in range(n_sites)
             )
             return transport + disposal
-        
+
         # Constraints
         constraints = [
             {'type': 'eq', 'fun': lambda x: np.sum(x) - dredged_volume},  # Total volume
         ]
-        
+
         # Capacity constraints for each site
         for i, site in enumerate(potential_sites):
             constraints.append({
                 'type': 'ineq',
                 'fun': lambda x, i=i: site['capacity'] - x[i]
             })
-        
+
         # Bounds (non-negative volumes)
         bounds = [(0, site['capacity']) for site in potential_sites]
-        
+
         # Initial guess
         x0 = np.ones(n_sites) * dredged_volume / n_sites
-        
+
         # Optimize
         result = minimize(
             objective, x0,
@@ -4608,16 +4608,16 @@ class DredgingOptimizer:
             bounds=bounds,
             constraints=constraints
         )
-        
+
         if result.success:
             allocation = result.x
-            
+
             disposal_plan = {
                 'sites': [],
                 'total_cost': result.fun,
                 'transport_distance': 0
             }
-            
+
             for i, volume in enumerate(allocation):
                 if volume > 0:
                     disposal_plan['sites'].append({
@@ -4625,38 +4625,38 @@ class DredgingOptimizer:
                         'volume': volume,
                         'cost': volume * potential_sites[i].get('cost_per_m3', 10)
                     })
-            
+
             return disposal_plan
         else:
             logger.warning("Disposal optimization failed")
             return {'sites': [], 'total_cost': 0}
-    
+
     def perform_cost_benefit_analysis(
         self,
         dredging_plan: Dict,
         benefits: Dict
     ) -> Dict:
         """Perform cost-benefit analysis.
-        
+
         Args:
             dredging_plan: Dredging plan
             benefits: Expected benefits
-            
+
         Returns:
             Cost-benefit analysis results
         """
         # Calculate costs
         direct_costs = dredging_plan['estimated_cost']
-        
+
         indirect_costs = {
             'environmental_mitigation': direct_costs * 0.1,
             'monitoring': direct_costs * 0.05,
             'permitting': 50000,
             'mobilization': 100000
         }
-        
+
         total_costs = direct_costs + sum(indirect_costs.values())
-        
+
         # Calculate benefits
         annual_benefits = {
             'navigation_improvement': benefits.get('navigation', 0),
@@ -4664,21 +4664,21 @@ class DredgingOptimizer:
             'economic_activity': benefits.get('economic', 0),
             'property_values': benefits.get('property', 0)
         }
-        
+
         total_annual_benefits = sum(annual_benefits.values())
-        
+
         # NPV calculation (10-year horizon, 5% discount rate)
         discount_rate = 0.05
         time_horizon = 10
-        
+
         npv = -total_costs
         for year in range(1, time_horizon + 1):
             npv += total_annual_benefits / (1 + discount_rate) ** year
-        
+
         # Calculate metrics
         payback_period = total_costs / total_annual_benefits if total_annual_benefits > 0 else float('inf')
         benefit_cost_ratio = (total_annual_benefits * time_horizon) / total_costs if total_costs > 0 else 0
-        
+
         return {
             'total_costs': total_costs,
             'cost_breakdown': indirect_costs,
@@ -4689,7 +4689,7 @@ class DredgingOptimizer:
             'benefit_cost_ratio': benefit_cost_ratio,
             'recommendation': 'proceed' if npv > 0 else 'reconsider'
         }
-    
+
     def _identify_dredging_areas(
         self,
         bathymetry: np.ndarray,
@@ -4697,37 +4697,37 @@ class DredgingOptimizer:
     ) -> List[DredgingArea]:
         """Identify areas requiring dredging."""
         areas = []
-        
+
         # Calculate depth deficit
         deficit = target_depth - bathymetry
         deficit = np.maximum(deficit, 0)
-        
+
         # Cluster areas using connected components
         from scipy.ndimage import label
-        
+
         threshold = 0.1  # Minimum deficit to consider
         mask = deficit > threshold
         labeled, num_features = label(mask)
-        
+
         for i in range(1, num_features + 1):
             area_mask = labeled == i
-            
+
             if np.sum(area_mask) < 10:  # Skip very small areas
                 continue
-            
+
             # Calculate area properties
             indices = np.where(area_mask)
             center_y, center_x = np.mean(indices[0]), np.mean(indices[1])
-            
+
             volume = np.sum(deficit[area_mask])
             max_deficit = np.max(deficit[area_mask])
-            
+
             # Determine sediment type (simplified)
             sediment_type = 'sand'  # Would be determined from sediment data
-            
+
             # Set priority based on deficit and location
             priority = self._calculate_priority(max_deficit, (center_x, center_y))
-            
+
             area = DredgingArea(
                 id=f"area_{i}",
                 location=(center_x, center_y),
@@ -4737,11 +4737,11 @@ class DredgingOptimizer:
                 sediment_type=sediment_type,
                 environmental_constraints=[]
             )
-            
+
             areas.append(area)
-        
+
         return areas
-    
+
     def _apply_constraints(
         self,
         areas: List[DredgingArea],
@@ -4749,46 +4749,46 @@ class DredgingOptimizer:
     ) -> List[DredgingArea]:
         """Apply environmental and operational constraints."""
         filtered_areas = []
-        
+
         for area in areas:
             # Check environmental constraints
             if 'protected_areas' in constraints:
                 if self._in_protected_area(area.location, constraints['protected_areas']):
                     area.environmental_constraints.append('protected_area')
-            
+
             if 'spawning_season' in constraints:
                 if constraints['spawning_season']:
                     area.environmental_constraints.append('spawning_season')
-            
+
             # Check operational constraints
             if 'max_depth' in constraints:
                 if area.depth_deficit > constraints['max_depth']:
                     continue  # Skip areas too deep for equipment
-            
+
             filtered_areas.append(area)
-        
+
         return filtered_areas
-    
+
     def _optimize_sequence(self, areas: List[DredgingArea]) -> List[DredgingArea]:
         """Optimize dredging sequence to minimize cost."""
         if len(areas) <= 1:
             return areas
-        
+
         # Create distance matrix
         locations = [area.location for area in areas]
         dist_matrix = distance_matrix(locations, locations)
-        
+
         # Add starting point (assumed to be origin)
         n = len(areas)
         extended_matrix = np.zeros((n + 1, n + 1))
         extended_matrix[1:, 1:] = dist_matrix
-        
+
         # Solve TSP-like problem
         # Simplified: sort by priority and distance
         sorted_areas = sorted(areas, key=lambda a: (-a.priority, a.volume))
-        
+
         return sorted_areas
-    
+
     def _allocate_equipment(self, sequence: List[DredgingArea]) -> Dict:
         """Allocate equipment to dredging areas."""
         equipment_types = {
@@ -4796,9 +4796,9 @@ class DredgingOptimizer:
             'trailing_hopper': {'capacity': 8000, 'cost': 15000},
             'backhoe': {'capacity': 2000, 'cost': 5000}
         }
-        
+
         allocation = {}
-        
+
         for area in sequence:
             # Select equipment based on volume and sediment type
             if area.volume > 5000:
@@ -4807,15 +4807,15 @@ class DredgingOptimizer:
                 equipment = 'cutter_suction'
             else:
                 equipment = 'backhoe'
-            
+
             allocation[area.id] = {
                 'equipment': equipment,
                 'duration_days': area.volume / equipment_types[equipment]['capacity'],
                 'cost': equipment_types[equipment]['cost']
             }
-        
+
         return allocation
-    
+
     def _prioritize_areas(
         self,
         areas: List[DredgingArea],
@@ -4824,7 +4824,7 @@ class DredgingOptimizer:
         """Prioritize areas within volume constraint."""
         prioritized = []
         current_volume = 0
-        
+
         for area in sorted(areas, key=lambda a: -a.priority):
             if current_volume + area.volume <= max_volume:
                 prioritized.append(area)
@@ -4835,9 +4835,9 @@ class DredgingOptimizer:
                 area.volume = remaining_volume
                 prioritized.append(area)
                 break
-        
+
         return prioritized
-    
+
     def _generate_work_orders(
         self,
         sequence: List[DredgingArea],
@@ -4845,7 +4845,7 @@ class DredgingOptimizer:
     ) -> List[Dict]:
         """Generate work orders for dredging operations."""
         work_orders = []
-        
+
         for i, area in enumerate(sequence):
             work_order = {
                 'id': f"WO_{area.id}",
@@ -4859,11 +4859,11 @@ class DredgingOptimizer:
                 'constraints': area.environmental_constraints,
                 'status': 'pending'
             }
-            
+
             work_orders.append(work_order)
-        
+
         return work_orders
-    
+
     def _assess_environmental_impact(self, areas: List[DredgingArea]) -> Dict:
         """Assess environmental impact of dredging."""
         impact = {
@@ -4873,20 +4873,20 @@ class DredgingOptimizer:
             'species_impact': [],
             'mitigation_required': []
         }
-        
+
         # Check for environmental constraints
         for area in areas:
             if 'protected_species' in area.environmental_constraints:
                 impact['species_impact'].append(area.id)
                 impact['mitigation_required'].append('species_monitoring')
-            
+
             if 'spawning_season' in area.environmental_constraints:
                 impact['mitigation_required'].append('timing_restriction')
-        
+
         impact['mitigation_required'] = list(set(impact['mitigation_required']))
-        
+
         return impact
-    
+
     def _calculate_timeline(
         self,
         sequence: List[DredgingArea],
@@ -4898,27 +4898,27 @@ class DredgingOptimizer:
             'phases': [],
             'total_days': 0
         }
-        
+
         current_date = timeline['start_date']
-        
+
         for area in sequence:
             duration = equipment[area.id]['duration_days']
-            
+
             phase = {
                 'area_id': area.id,
                 'start': current_date,
                 'end': current_date + pd.Timedelta(days=duration),
                 'duration_days': duration
             }
-            
+
             timeline['phases'].append(phase)
             current_date = phase['end']
-        
+
         timeline['end_date'] = current_date
         timeline['total_days'] = (current_date - timeline['start_date']).days
-        
+
         return timeline
-    
+
     def _area_to_dict(self, area: DredgingArea) -> Dict:
         """Convert DredgingArea to dictionary."""
         return {
@@ -4931,7 +4931,7 @@ class DredgingOptimizer:
             'environmental_constraints': area.environmental_constraints,
             'cost_estimate': area.cost_estimate
         }
-    
+
     def _calculate_priority(self, deficit: float, location: Tuple[float, float]) -> int:
         """Calculate area priority."""
         # Higher deficit = higher priority
@@ -4945,13 +4945,13 @@ class DredgingOptimizer:
             priority = 2
         else:
             priority = 1
-        
+
         # Adjust for location (simplified - center channel gets bonus)
         if 40 < location[0] < 60:  # Near channel center
             priority += 1
-        
+
         return min(priority, 5)
-    
+
     def _in_protected_area(
         self,
         location: Tuple[float, float],
@@ -4963,7 +4963,7 @@ class DredgingOptimizer:
             if (bounds[0] <= location[0] <= bounds[2] and
                 bounds[1] <= location[1] <= bounds[3]):
                 return True
-        
+
         return False
 ```
 
@@ -5186,19 +5186,19 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install GDAL
       run: |
         sudo apt-get update
         sudo apt-get install -y gdal-bin libgdal-dev
         export CPLUS_INCLUDE_PATH=/usr/include/gdal
         export C_INCLUDE_PATH=/usr/include/gdal
-    
+
     - name: Cache pip packages
       uses: actions/cache@v3
       with:
@@ -5206,15 +5206,15 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('requirements/*.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
-    
+
     - name: Test with tox
       run: tox
-    
+
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
       with:
@@ -5224,51 +5224,51 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.11
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install black flake8 mypy isort
-    
+
     - name: Lint with flake8
       run: flake8 hydroflow tests
-    
+
     - name: Check formatting with black
       run: black --check hydroflow tests
-    
+
     - name: Check import sorting with isort
       run: isort --check-only hydroflow tests
-    
+
     - name: Type check with mypy
       run: mypy hydroflow
 
   security:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.11
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install bandit safety
-    
+
     - name: Security check with bandit
       run: bandit -r hydroflow
-    
+
     - name: Check dependencies with safety
       run: safety check
 ```
@@ -5305,4 +5305,3 @@ This complete HydroFlow system provides:
    - Configuration management
 
 The system is designed to be scalable, maintainable, and extensible, with proper error handling, logging, and documentation throughout.
-

@@ -12,5 +12,3 @@ services:
       - OPENAI_API_KEY
       - HYDROFLOW_ENVIRONMENT=production
     restart: unless-stopped
-
-

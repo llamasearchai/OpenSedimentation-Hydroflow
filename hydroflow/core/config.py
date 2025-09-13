@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+import os
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
-import os
+
 import yaml
 
 
@@ -116,6 +117,7 @@ class Config:
 
     def dict(self) -> Dict:
         d = asdict(self)
+
         # Convert Paths to strings for serialization
         def convert(obj):
             if isinstance(obj, Path):
@@ -135,5 +137,3 @@ def get_config() -> Config:
     if p.exists():
         return Config.from_yaml(p)
     return Config()
-
-

@@ -1,6 +1,7 @@
 """Report generator tests."""
 
 from pathlib import Path
+
 from hydroflow.utils.reporting import ReportGenerator
 
 
@@ -12,4 +13,3 @@ def test_report_html_tmp(tmp_path: Path):
     text = out.read_text(encoding="utf-8")
     assert "HydroFlow Report" in text
     assert "metric_a" in text and "1.23" in text
-

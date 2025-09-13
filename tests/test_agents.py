@@ -1,6 +1,7 @@
 """Agent tests (no external calls)."""
 
 import os
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -15,5 +16,3 @@ def test_agents_summarize_missing_key():
     r = client.post("/agents/summarize", json={"metrics": {"a": 1}})
     assert r.status_code == 400
     assert "OPENAI_API_KEY" in r.json()["detail"]
-
-

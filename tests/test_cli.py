@@ -17,5 +17,3 @@ def test_cli_config():
     result = runner.invoke(cli, ["config"])  # prints JSON
     assert result.exit_code == 0
     assert "environment" in result.output
-
-

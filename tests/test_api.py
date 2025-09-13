@@ -81,5 +81,3 @@ def test_analyze_vegetation_endpoint():
     assert r.status_code == 200
     body = r.json()
     assert "metrics" in body
-
-
