@@ -192,7 +192,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/ci.yml`) t
 
 Versioning & Releases
 ---------------------
-- Current version: `0.1.0` (tagged locally as `v0.1.0`).
+- Current version: `0.1.1` (tagged locally as `v0.1.1`).
 - Semantic Versioning (MAJOR.MINOR.PATCH).
 
 Security & Privacy
